@@ -3,7 +3,9 @@ package com.cookyuu.resume_chat.entity;
 import com.cookyuu.resume_chat.common.entity.BaseTimeEntity;
 import com.cookyuu.resume_chat.common.enums.ApplicantStatus;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -11,8 +13,9 @@ import java.util.UUID;
 
 @Entity
 @Getter
+@Builder
 @AllArgsConstructor
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "rc_applicant")
 public class Applicant extends BaseTimeEntity {
     @Id
@@ -35,4 +38,22 @@ public class Applicant extends BaseTimeEntity {
     private ApplicantStatus status;
 
     private int loginFailCnt;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.uuid == null) {
+            this.uuid = UUID.randomUUID();
+        }
+    }
+
+    public static Applicant createNewApplicant(String email, String name, String encodedPassword) {
+        return Applicant.builder()
+                .uuid(UUID.randomUUID())
+                .email(email)
+                .name(name)
+                .password(encodedPassword)
+                .status(ApplicantStatus.ACTIVE)
+                .loginFailCnt(0)
+                .build();
+    }
 }

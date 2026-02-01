@@ -25,6 +25,7 @@ public enum ErrorCode {
     APPLICANT_ALREADY_EXISTS("A002", "이미 존재하는 이메일입니다", HttpStatus.CONFLICT),
     INVALID_PASSWORD("A003", "비밀번호가 일치하지 않습니다", HttpStatus.BAD_REQUEST),
     ACCOUNT_LOCKED("A004", "계정이 잠겨있습니다", HttpStatus.FORBIDDEN),
+    INVALID_CREDENTIALS("A005", "이메일 또는 비밀번호가 일치하지 않습니다", HttpStatus.UNAUTHORIZED),
 
     // Resume
     RESUME_NOT_FOUND("R001", "이력서를 찾을 수 없습니다", HttpStatus.NOT_FOUND),

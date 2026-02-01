@@ -56,4 +56,26 @@ public class Applicant extends BaseTimeEntity {
                 .loginFailCnt(0)
                 .build();
     }
+
+    public void incrementLoginFailCount() {
+        this.loginFailCnt++;
+    }
+    public void resetLoginFailCount() {
+        this.loginFailCnt = 0;
+    }
+    public void lockAccount() {
+        this.status = ApplicantStatus.INACTIVE;
+    }
+    public boolean isAccountLocked() {
+        return this.status == ApplicantStatus.INACTIVE;
+    }
+    public void loginSuccess() {
+        resetLoginFailCount();
+    }
+    public void loginFailed() {
+        incrementLoginFailCount();
+        if (this.loginFailCnt >= 5) {
+            lockAccount();
+        }
+    }
 }

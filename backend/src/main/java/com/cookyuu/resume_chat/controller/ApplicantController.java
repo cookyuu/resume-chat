@@ -1,4 +1,4 @@
 package com.cookyuu.resume_chat.controller;
 
-public class ApplicationController {
+public class ApplicantController {
 }

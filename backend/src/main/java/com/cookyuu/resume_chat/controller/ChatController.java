@@ -248,8 +248,16 @@ public class ChatController {
                                           {
                                             "messageId": "m1n2o3p4-q5r6-7890-stuv-wx1234567890",
                                             "message": "안녕하세요, 귀하의 이력서를 흥미롭게 봤습니다.",
+                                            "senderType": "RECRUITER",
                                             "readStatus": true,
                                             "sentAt": "2024-02-13T09:00:00"
+                                          },
+                                          {
+                                            "messageId": "m2n3o4p5-q6r7-8901-stuv-wx2345678901",
+                                            "message": "감사합니다. 면접 기회를 주신다면 성실히 임하겠습니다.",
+                                            "senderType": "APPLICANT",
+                                            "readStatus": true,
+                                            "sentAt": "2024-02-13T10:15:00"
                                           }
                                         ]
                                       },

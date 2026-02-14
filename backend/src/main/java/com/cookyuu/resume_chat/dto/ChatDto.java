@@ -1,5 +1,6 @@
 package com.cookyuu.resume_chat.dto;
 
+import com.cookyuu.resume_chat.common.enums.SenderType;
 import com.cookyuu.resume_chat.entity.ChatMessage;
 import com.cookyuu.resume_chat.entity.ChatSession;
 import jakarta.validation.constraints.Email;
@@ -102,6 +103,7 @@ public class ChatDto {
     public static class MessageInfo {
         private UUID messageId;
         private String message;
+        private SenderType senderType;
         private boolean readStatus;
         private LocalDateTime sentAt;
 
@@ -109,6 +111,7 @@ public class ChatDto {
             return new MessageInfo(
                     message.getMessageId(),
                     message.getContent(),
+                    message.getSenderType(),
                     message.isReadStatus(),
                     message.getCreatedAt()
             );

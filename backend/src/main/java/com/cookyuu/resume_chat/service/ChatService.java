@@ -116,4 +116,31 @@ public class ChatService {
 
         return ChatDto.ChatDetailResponse.of(session, messages, unreadCount);
     }
+
+    @Transactional
+    public ChatDto.ApplicantSendMessageResponse sendMessageByApplicant(
+            UUID applicantUuid,
+            String sessionToken,
+            ChatDto.ApplicantSendMessageRequest request) {
+
+        Applicant applicant = applicantRepository.findByUuid(applicantUuid)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        if (!session.getResume().getApplicant().getId().equals(applicant.getId())) {
+            throw new BusinessException(ErrorCode.RESUME_ACCESS_DENIED);
+        }
+
+        ChatMessage message = ChatMessage.createMessage(session, SenderType.APPLICANT, request.getMessage());
+        chatMessageRepository.save(message);
+
+        session.incrementMessageCount();
+
+        log.info("지원자 채팅 메시지 전송 완료: sessionToken={}, messageId={}, applicantUuid={}",
+                session.getSessionToken(), message.getMessageId(), applicantUuid);
+
+        return ChatDto.ApplicantSendMessageResponse.from(session, message);
+    }
 }

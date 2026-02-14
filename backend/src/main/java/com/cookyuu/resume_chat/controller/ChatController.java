@@ -57,4 +57,21 @@ public class ChatController {
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    @PostMapping("/applicant/chat/{sessionToken}/send")
+    public ResponseEntity<ApiResponse<ChatDto.ApplicantSendMessageResponse>> sendMessageByApplicant(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable String sessionToken,
+            @Valid @RequestBody ChatDto.ApplicantSendMessageRequest request) {
+
+        ChatDto.ApplicantSendMessageResponse response = chatService.sendMessageByApplicant(
+                userDetails.getUuid(),
+                sessionToken,
+                request
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response));
+    }
 }

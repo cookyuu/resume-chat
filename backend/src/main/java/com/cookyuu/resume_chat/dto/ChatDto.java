@@ -144,4 +144,37 @@ public class ChatDto {
         private String resumeTitle;
         private List<SessionInfo> sessions;
     }
+
+    /**
+     * 지원자용 메시지 전송 요청 DTO
+     */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ApplicantSendMessageRequest {
+        @NotBlank(message = "메시지 내용은 필수입니다")
+        @Size(min = 1, max = 1000, message = "메시지는 1자 이상 1000자 이하로 입력해주세요")
+        private String message;
+    }
+
+    /**
+     * 지원자용 메시지 전송 응답 DTO
+     */
+    @Getter
+    @AllArgsConstructor
+    public static class ApplicantSendMessageResponse {
+        private String sessionToken;
+        private UUID messageId;
+        private String message;
+        private LocalDateTime sentAt;
+
+        public static ApplicantSendMessageResponse from(ChatSession session, ChatMessage message) {
+            return new ApplicantSendMessageResponse(
+                    session.getSessionToken(),
+                    message.getMessageId(),
+                    message.getContent(),
+                    message.getCreatedAt()
+            );
+        }
+    }
 }

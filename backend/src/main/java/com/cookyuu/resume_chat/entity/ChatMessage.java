@@ -3,19 +3,23 @@ package com.cookyuu.resume_chat.entity;
 import com.cookyuu.resume_chat.common.entity.BaseTimeEntity;
 import com.cookyuu.resume_chat.common.enums.SenderType;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
+import java.util.UUID;
 
 @Entity
 @Getter
+@Builder
 @AllArgsConstructor
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "rc_chat_message")
 public class ChatMessage extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(unique = true, nullable = false)
+    private UUID messageId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -28,7 +32,30 @@ public class ChatMessage extends BaseTimeEntity {
     @JoinColumn(name = "session_id", nullable = false)
     private ChatSession session;
 
-    @Column(name = "readStatus", nullable = false)
+    @Column(name = "read_status", nullable = false)
     private boolean readStatus;
 
+    @PrePersist
+    public void prePersist() {
+        if (this.messageId == null) {
+            this.messageId = UUID.randomUUID();
+        }
+        if (!this.readStatus) {
+            this.readStatus = false;
+        }
+    }
+
+    public static ChatMessage createMessage(ChatSession session, SenderType senderType, String content) {
+        return ChatMessage.builder()
+                .messageId(UUID.randomUUID())
+                .session(session)
+                .senderType(senderType)
+                .content(content)
+                .readStatus(false)
+                .build();
+    }
+
+    public void markAsRead() {
+        this.readStatus = true;
+    }
 }

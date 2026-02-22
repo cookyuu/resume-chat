@@ -4,8 +4,7 @@ import com.cookyuu.resume_chat.command.ApplicantCommand;
 import com.cookyuu.resume_chat.common.exception.BusinessException;
 import com.cookyuu.resume_chat.common.exception.GlobalExceptionHandler;
 import com.cookyuu.resume_chat.common.response.ErrorCode;
-import com.cookyuu.resume_chat.dto.JoinApplicantDto;
-import com.cookyuu.resume_chat.dto.LoginApplicantDto;
+import com.cookyuu.resume_chat.dto.ApplicantDto;
 import com.cookyuu.resume_chat.service.ApplicantService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Disabled;
@@ -66,7 +65,7 @@ class ApplicantControllerTest {
         @DisplayName("성공: 유효한 요청으로 회원가입 시 201 Created 응답")
         void success_validRequest_returns201Created() throws Exception {
             // Given
-            JoinApplicantDto.Request request = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request = new ApplicantDto.JoinRequest(
                     "test@example.com",
                     "password123",
                     "홍길동"
@@ -90,7 +89,7 @@ class ApplicantControllerTest {
         @DisplayName("실패: 이메일 형식 오류 시 400 Bad Request")
         void fail_invalidEmailFormat_returns400() throws Exception {
             // Given
-            JoinApplicantDto.Request request = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request = new ApplicantDto.JoinRequest(
                     "invalid-email",
                     "password123",
                     "홍길동"
@@ -113,7 +112,7 @@ class ApplicantControllerTest {
         @DisplayName("실패: 이메일 누락 시 400 Bad Request")
         void fail_missingEmail_returns400() throws Exception {
             // Given
-            JoinApplicantDto.Request request = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request = new ApplicantDto.JoinRequest(
                     null,
                     "password123",
                     "홍길동"
@@ -136,7 +135,7 @@ class ApplicantControllerTest {
         @DisplayName("실패: 비밀번호 길이 부족 시 400 Bad Request")
         void fail_passwordTooShort_returns400() throws Exception {
             // Given
-            JoinApplicantDto.Request request = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request = new ApplicantDto.JoinRequest(
                     "test@example.com",
                     "short",
                     "홍길동"
@@ -159,7 +158,7 @@ class ApplicantControllerTest {
         @DisplayName("실패: 비밀번호 누락 시 400 Bad Request")
         void fail_missingPassword_returns400() throws Exception {
             // Given
-            JoinApplicantDto.Request request = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request = new ApplicantDto.JoinRequest(
                     "test@example.com",
                     null,
                     "홍길동"
@@ -182,7 +181,7 @@ class ApplicantControllerTest {
         @DisplayName("실패: 이름 길이 부족 시 400 Bad Request")
         void fail_nameTooShort_returns400() throws Exception {
             // Given
-            JoinApplicantDto.Request request = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request = new ApplicantDto.JoinRequest(
                     "test@example.com",
                     "password123",
                     "a"
@@ -205,7 +204,7 @@ class ApplicantControllerTest {
         @DisplayName("실패: 이름 누락 시 400 Bad Request")
         void fail_missingName_returns400() throws Exception {
             // Given
-            JoinApplicantDto.Request request = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request = new ApplicantDto.JoinRequest(
                     "test@example.com",
                     "password123",
                     null
@@ -228,7 +227,7 @@ class ApplicantControllerTest {
         @DisplayName("실패: 이메일 중복 시 409 Conflict")
         void fail_duplicateEmail_returns409() throws Exception {
             // Given
-            JoinApplicantDto.Request request = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request = new ApplicantDto.JoinRequest(
                     "test@example.com",
                     "password123",
                     "홍길동"
@@ -258,11 +257,11 @@ class ApplicantControllerTest {
         @DisplayName("성공: 앱 클라이언트 로그인 시 응답 본문에 JWT 토큰 모두 포함")
         void success_appClient_returnsTokensInBody() throws Exception {
             // Given
-            LoginApplicantDto.Request request = new LoginApplicantDto.Request(
+            ApplicantDto.LoginRequest request = new ApplicantDto.LoginRequest(
                     "test@example.com",
                     "password123"
             );
-            LoginApplicantDto.Response response = new LoginApplicantDto.Response(
+            ApplicantDto.LoginResponse response = new ApplicantDto.LoginResponse(
                     UUID.randomUUID(),
                     "test@example.com",
                     "홍길동",
@@ -293,11 +292,11 @@ class ApplicantControllerTest {
         @DisplayName("성공: 웹 클라이언트 로그인 시 Refresh Token은 쿠키로 전달")
         void success_webClient_returnsRefreshTokenInCookie() throws Exception {
             // Given
-            LoginApplicantDto.Request request = new LoginApplicantDto.Request(
+            ApplicantDto.LoginRequest request = new ApplicantDto.LoginRequest(
                     "test@example.com",
                     "password123"
             );
-            LoginApplicantDto.Response response = new LoginApplicantDto.Response(
+            ApplicantDto.LoginResponse response = new ApplicantDto.LoginResponse(
                     UUID.randomUUID(),
                     "test@example.com",
                     "홍길동",
@@ -332,11 +331,11 @@ class ApplicantControllerTest {
         @DisplayName("성공: 헤더가 없는 경우 기본값(웹)으로 처리")
         void success_noHeader_defaultsToWeb() throws Exception {
             // Given
-            LoginApplicantDto.Request request = new LoginApplicantDto.Request(
+            ApplicantDto.LoginRequest request = new ApplicantDto.LoginRequest(
                     "test@example.com",
                     "password123"
             );
-            LoginApplicantDto.Response response = new LoginApplicantDto.Response(
+            ApplicantDto.LoginResponse response = new ApplicantDto.LoginResponse(
                     UUID.randomUUID(),
                     "test@example.com",
                     "홍길동",
@@ -363,7 +362,7 @@ class ApplicantControllerTest {
         @DisplayName("실패: 이메일 형식 오류 시 400 Bad Request")
         void fail_invalidEmailFormat_returns400() throws Exception {
             // Given
-            LoginApplicantDto.Request request = new LoginApplicantDto.Request(
+            ApplicantDto.LoginRequest request = new ApplicantDto.LoginRequest(
                     "invalid-email",
                     "password123"
             );
@@ -385,7 +384,7 @@ class ApplicantControllerTest {
         @DisplayName("실패: 이메일 누락 시 400 Bad Request")
         void fail_missingEmail_returns400() throws Exception {
             // Given
-            LoginApplicantDto.Request request = new LoginApplicantDto.Request(
+            ApplicantDto.LoginRequest request = new ApplicantDto.LoginRequest(
                     null,
                     "password123"
             );
@@ -406,7 +405,7 @@ class ApplicantControllerTest {
         @DisplayName("실패: 비밀번호 누락 시 400 Bad Request")
         void fail_missingPassword_returns400() throws Exception {
             // Given
-            LoginApplicantDto.Request request = new LoginApplicantDto.Request(
+            ApplicantDto.LoginRequest request = new ApplicantDto.LoginRequest(
                     "test@example.com",
                     null
             );
@@ -427,7 +426,7 @@ class ApplicantControllerTest {
         @DisplayName("실패: 잘못된 이메일/비밀번호 시 401 Unauthorized")
         void fail_invalidCredentials_returns401() throws Exception {
             // Given
-            LoginApplicantDto.Request request = new LoginApplicantDto.Request(
+            ApplicantDto.LoginRequest request = new ApplicantDto.LoginRequest(
                     "test@example.com",
                     "wrongpassword"
             );
@@ -451,7 +450,7 @@ class ApplicantControllerTest {
         @DisplayName("실패: 계정 잠김 시 403 Forbidden")
         void fail_accountLocked_returns403() throws Exception {
             // Given
-            LoginApplicantDto.Request request = new LoginApplicantDto.Request(
+            ApplicantDto.LoginRequest request = new ApplicantDto.LoginRequest(
                     "test@example.com",
                     "password123"
             );

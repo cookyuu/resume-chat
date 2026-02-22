@@ -3,9 +3,7 @@ package com.cookyuu.resume_chat.controller;
 import com.cookyuu.resume_chat.command.ApplicantCommand;
 import com.cookyuu.resume_chat.common.enums.ClientType;
 import com.cookyuu.resume_chat.common.response.ApiResponse;
-import com.cookyuu.resume_chat.dto.ApplicantProfileDto;
-import com.cookyuu.resume_chat.dto.JoinApplicantDto;
-import com.cookyuu.resume_chat.dto.LoginApplicantDto;
+import com.cookyuu.resume_chat.dto.ApplicantDto;
 import com.cookyuu.resume_chat.security.CustomUserDetails;
 import com.cookyuu.resume_chat.service.ApplicantService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -94,7 +92,7 @@ public class ApplicantController {
     })
     @PostMapping("/join")
     public ResponseEntity<ApiResponse<Void>> joinApplicant(
-            @Valid @RequestBody JoinApplicantDto.Request request) {
+            @Valid @RequestBody ApplicantDto.JoinRequest request) {
         ApplicantCommand.Create command = ApplicantCommand.Create.from(request);
         applicantService.joinApplicant(command);
 
@@ -205,8 +203,8 @@ public class ApplicantController {
             )
     })
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginApplicantDto.Response>> loginApplicant(
-            @Valid @RequestBody LoginApplicantDto.Request request,
+    public ResponseEntity<ApiResponse<ApplicantDto.LoginResponse>> loginApplicant(
+            @Valid @RequestBody ApplicantDto.LoginRequest request,
             @Parameter(
                     description = "클라이언트 타입 (web 또는 app, 기본값: web)",
                     example = "web",
@@ -214,7 +212,7 @@ public class ApplicantController {
             )
             @RequestHeader(value = "X-Client-Type", required = false) String clientTypeHeader) {
         ApplicantCommand.Login command = ApplicantCommand.Login.from(request);
-        LoginApplicantDto.Response response = applicantService.login(command);
+        ApplicantDto.LoginResponse response = applicantService.login(command);
 
         ClientType clientType = ClientType.from(clientTypeHeader);
 
@@ -227,7 +225,7 @@ public class ApplicantController {
 //                    .sameSite("Strict")
                     .build();
 
-            response = new LoginApplicantDto.Response(
+            response = new ApplicantDto.LoginResponse(
                     response.getUuid(),
                     response.getEmail(),
                     response.getName(),
@@ -306,9 +304,9 @@ public class ApplicantController {
             )
     })
     @GetMapping("/profile")
-    public ResponseEntity<ApiResponse<ApplicantProfileDto.Response>> getProfile(
+    public ResponseEntity<ApiResponse<ApplicantDto.ProfileResponse>> getProfile(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails) {
-        ApplicantProfileDto.Response response = applicantService.getProfile(userDetails.getUuid());
+        ApplicantDto.ProfileResponse response = applicantService.getProfile(userDetails.getUuid());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

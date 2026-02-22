@@ -1,7 +1,6 @@
 package com.cookyuu.resume_chat.command;
 
-import com.cookyuu.resume_chat.dto.JoinApplicantDto;
-import com.cookyuu.resume_chat.dto.LoginApplicantDto;
+import com.cookyuu.resume_chat.dto.ApplicantDto;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -14,7 +13,7 @@ public class ApplicantCommand {
         private final String password;
         private final String name;
 
-        public static Create from(JoinApplicantDto.Request request) {
+        public static Create from(ApplicantDto.JoinRequest request) {
             return new Create(
                     request.getEmail(),
                     request.getPassword(),
@@ -29,7 +28,7 @@ public class ApplicantCommand {
         private final String email;
         private final String password;
 
-        public static Login from(LoginApplicantDto.Request request) {
+        public static Login from(ApplicantDto.LoginRequest request) {
             return new Login(
                     request.getEmail(),
                     request.getPassword()

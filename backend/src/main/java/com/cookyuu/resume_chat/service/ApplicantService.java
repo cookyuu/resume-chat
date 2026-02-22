@@ -3,8 +3,7 @@ package com.cookyuu.resume_chat.service;
 import com.cookyuu.resume_chat.command.ApplicantCommand;
 import com.cookyuu.resume_chat.common.exception.BusinessException;
 import com.cookyuu.resume_chat.common.response.ErrorCode;
-import com.cookyuu.resume_chat.dto.ApplicantProfileDto;
-import com.cookyuu.resume_chat.dto.LoginApplicantDto;
+import com.cookyuu.resume_chat.dto.ApplicantDto;
 import com.cookyuu.resume_chat.entity.Applicant;
 import com.cookyuu.resume_chat.repository.ApplicantRepository;
 import com.cookyuu.resume_chat.security.JwtTokenProvider;
@@ -24,9 +23,6 @@ public class ApplicantService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
-    /**
-     * 지원자 회원가입
-     */
     @Transactional
     public void joinApplicant(ApplicantCommand.Create command) {
         if (applicantRepository.existsByEmail(command.getEmail())) {
@@ -46,7 +42,7 @@ public class ApplicantService {
     }
 
     @Transactional
-    public LoginApplicantDto.Response login(ApplicantCommand.Login command) {
+    public ApplicantDto.LoginResponse login(ApplicantCommand.Login command) {
         Applicant applicant = applicantRepository.findByEmail(command.getEmail())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
 
@@ -55,8 +51,11 @@ public class ApplicantService {
             throw new BusinessException(ErrorCode.ACCOUNT_LOCKED);
         }
 
-        if (!passwordEncoder.matches(command.getPassword(), applicant.getPassword())) {
+        boolean isMatch = passwordEncoder.matches(command.getPassword(), applicant.getPassword());
+
+        if (!isMatch) {
             applicant.loginFailed();
+            applicantRepository.saveAndFlush(applicant);
             log.warn("로그인 실패: email={}, failCount={}", command.getEmail(), applicant.getLoginFailCnt());
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
@@ -67,7 +66,7 @@ public class ApplicantService {
         String accessToken = jwtTokenProvider.generateAccessToken(applicant.getUuid(), applicant.getEmail());
         String refreshToken = jwtTokenProvider.generateRefreshToken(applicant.getUuid());
 
-        return new LoginApplicantDto.Response(
+        return new ApplicantDto.LoginResponse(
                 applicant.getUuid(),
                 applicant.getEmail(),
                 applicant.getName(),
@@ -76,12 +75,12 @@ public class ApplicantService {
         );
     }
 
-    public ApplicantProfileDto.Response getProfile(UUID uuid) {
+    public ApplicantDto.ProfileResponse getProfile(UUID uuid) {
         Applicant applicant = applicantRepository.findById(findApplicantIdByUuid(uuid))
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
 
         log.info("프로필 조회: email={}, uuid={}", applicant.getEmail(), applicant.getUuid());
-        return ApplicantProfileDto.Response.from(applicant);
+        return ApplicantDto.ProfileResponse.from(applicant);
     }
 
     private Long findApplicantIdByUuid(UUID uuid) {

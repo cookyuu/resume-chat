@@ -38,6 +38,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/applicant/join", "/api/applicant/login").permitAll()
                         .requestMatchers("/api/chat/*/send").permitAll()
+                        .requestMatchers("/api/chat/*/enter").permitAll()
+                        .requestMatchers("/api/chat/session/*/messages").permitAll()
+                        .requestMatchers("/api/chat/session/*/send").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated()

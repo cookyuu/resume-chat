@@ -143,4 +143,62 @@ public class ChatService {
 
         return ChatDto.ApplicantSendMessageResponse.from(session, message);
     }
+
+    @Transactional
+    public ChatDto.EnterSessionResponse enterChatSession(UUID resumeSlug, ChatDto.EnterSessionRequest request) {
+        Resume resume = resumeRepository.findByResumeSlug(resumeSlug)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESUME_NOT_FOUND));
+
+        ChatSession session = chatSessionRepository.findByResumeAndRecruiterEmail(resume, request.getRecruiterEmail())
+                .orElseGet(() -> {
+                    ChatSession newSession = ChatSession.createNewSession(
+                            resume,
+                            request.getRecruiterName(),
+                            request.getRecruiterEmail(),
+                            request.getRecruiterCompany()
+                    );
+                    ChatSession saved = chatSessionRepository.save(newSession);
+                    log.info("새 채팅 세션 생성: sessionToken={}, recruiterEmail={}, resumeSlug={}",
+                            saved.getSessionToken(), request.getRecruiterEmail(), resumeSlug);
+                    return saved;
+                });
+
+        log.info("채용담당자 세션 진입: sessionToken={}, recruiterEmail={}, isNewSession={}",
+                session.getSessionToken(), request.getRecruiterEmail(), session.getTotalMessages() == 0);
+
+        return ChatDto.EnterSessionResponse.from(session);
+    }
+
+    @Transactional(readOnly = true)
+    public ChatDto.ChatDetailResponse getRecruiterSessionMessages(String sessionToken) {
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        long unreadCount = chatMessageRepository.countBySessionAndReadStatusFalse(session);
+
+        List<ChatMessage> messages = chatMessageRepository.findBySessionOrderByCreatedAtAsc(session);
+
+        log.info("채용담당자 메시지 조회: sessionToken={}, messageCount={}", sessionToken, messages.size());
+
+        return ChatDto.ChatDetailResponse.of(session, messages, unreadCount);
+    }
+
+    @Transactional
+    public ChatDto.RecruiterSendMessageResponse sendRecruiterMessage(
+            String sessionToken,
+            ChatDto.RecruiterSendMessageRequest request) {
+
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        ChatMessage message = ChatMessage.createMessage(session, SenderType.RECRUITER, request.getMessage());
+        chatMessageRepository.save(message);
+
+        session.incrementMessageCount();
+
+        log.info("채용담당자 메시지 전송 완료: sessionToken={}, messageId={}",
+                sessionToken, message.getMessageId());
+
+        return ChatDto.RecruiterSendMessageResponse.from(session, message);
+    }
 }

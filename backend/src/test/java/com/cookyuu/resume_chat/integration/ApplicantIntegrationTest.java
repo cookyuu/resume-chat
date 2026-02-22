@@ -1,7 +1,7 @@
 package com.cookyuu.resume_chat.integration;
 
 import com.cookyuu.resume_chat.common.enums.ApplicantStatus;
-import com.cookyuu.resume_chat.dto.JoinApplicantDto;
+import com.cookyuu.resume_chat.dto.ApplicantDto;
 import com.cookyuu.resume_chat.entity.Applicant;
 import com.cookyuu.resume_chat.repository.ApplicantRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -56,7 +56,7 @@ class ApplicantIntegrationTest {
         @Transactional
         void success_fullFlow() throws Exception {
             // Given
-            JoinApplicantDto.Request request = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request = new ApplicantDto.JoinRequest(
                     "test@example.com",
                     "password123",
                     "홍길동"
@@ -99,7 +99,7 @@ class ApplicantIntegrationTest {
             );
             applicantRepository.save(existingApplicant);
 
-            JoinApplicantDto.Request request = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request = new ApplicantDto.JoinRequest(
                     "duplicate@example.com",
                     "newpassword123",
                     "신규회원"
@@ -126,7 +126,7 @@ class ApplicantIntegrationTest {
         @Transactional
         void fail_validationError_returns400AndNotSaved() throws Exception {
             // Given
-            JoinApplicantDto.Request request = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request = new ApplicantDto.JoinRequest(
                     "invalid-email",  // 잘못된 이메일 형식
                     "password123",
                     "홍길동"
@@ -151,12 +151,12 @@ class ApplicantIntegrationTest {
         @Transactional
         void success_multipleApplicants_allSaved() throws Exception {
             // Given
-            JoinApplicantDto.Request request1 = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request1 = new ApplicantDto.JoinRequest(
                     "user1@example.com",
                     "password123",
                     "홍길동"
             );
-            JoinApplicantDto.Request request2 = new JoinApplicantDto.Request(
+            ApplicantDto.JoinRequest request2 = new ApplicantDto.JoinRequest(
                     "user2@example.com",
                     "password456",
                     "김철수"

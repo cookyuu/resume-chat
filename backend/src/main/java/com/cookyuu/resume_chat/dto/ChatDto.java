@@ -180,4 +180,88 @@ public class ChatDto {
             );
         }
     }
+
+    /**
+     * 채용담당자 세션 진입 요청 DTO
+     */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class EnterSessionRequest {
+        @NotBlank(message = "채용담당자 이메일은 필수입니다")
+        @Email(message = "올바른 이메일 형식이 아닙니다")
+        private String recruiterEmail;
+
+        @NotBlank(message = "채용담당자 이름은 필수입니다")
+        @Size(min = 2, max = 50, message = "이름은 2자 이상 50자 이하로 입력해주세요")
+        private String recruiterName;
+
+        @NotBlank(message = "회사명은 필수입니다")
+        @Size(min = 2, max = 100, message = "회사명은 2자 이상 100자 이하로 입력해주세요")
+        private String recruiterCompany;
+    }
+
+    /**
+     * 채용담당자 세션 진입 응답 DTO
+     */
+    @Getter
+    @AllArgsConstructor
+    public static class EnterSessionResponse {
+        private String sessionToken;
+        private UUID resumeSlug;
+        private String resumeTitle;
+        private String recruiterEmail;
+        private String recruiterName;
+        private String recruiterCompany;
+        private long totalMessages;
+        private LocalDateTime lastMessageAt;
+        private LocalDateTime createdAt;
+
+        public static EnterSessionResponse from(ChatSession session) {
+            return new EnterSessionResponse(
+                    session.getSessionToken(),
+                    session.getResume().getResumeSlug(),
+                    session.getResume().getTitle(),
+                    session.getRecruiterEmail(),
+                    session.getRecruiterName(),
+                    session.getRecruiterCompany(),
+                    session.getTotalMessages(),
+                    session.getLastMessageAt(),
+                    session.getCreatedAt()
+            );
+        }
+    }
+
+    /**
+     * 채용담당자용 메시지 전송 요청 DTO
+     */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RecruiterSendMessageRequest {
+        @NotBlank(message = "메시지 내용은 필수입니다")
+        @Size(min = 1, max = 1000, message = "메시지는 1자 이상 1000자 이하로 입력해주세요")
+        private String message;
+    }
+
+    /**
+     * 채용담당자용 메시지 전송 응답 DTO
+     */
+    @Getter
+    @AllArgsConstructor
+    public static class RecruiterSendMessageResponse {
+        private String sessionToken;
+        private UUID messageId;
+        private String message;
+        private LocalDateTime sentAt;
+
+        public static RecruiterSendMessageResponse from(ChatSession session, ChatMessage message) {
+            return new RecruiterSendMessageResponse(
+                    session.getSessionToken(),
+                    message.getMessageId(),
+                    message.getContent(),
+                    message.getCreatedAt()
+            );
+        }
+    }
 }

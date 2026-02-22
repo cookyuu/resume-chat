@@ -258,7 +258,7 @@ public class ResumeController {
     public ResponseEntity<ApiResponse<Void>> deleteResume(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
             @Parameter(description = "이력서 고유 식별자 (UUID)", required = true)
-            @PathVariable UUID resumeSlug) {
+            @PathVariable("resumeSlug") UUID resumeSlug) {
 
         resumeService.deleteResume(userDetails.getUuid(), resumeSlug);
 

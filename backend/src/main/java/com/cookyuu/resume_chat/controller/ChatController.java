@@ -30,7 +30,231 @@ public class ChatController {
     private final ChatService chatService;
 
     @Operation(
-            summary = "채용담당자 메시지 전송",
+            summary = "채용담당자 세션 진입 (조회/생성)",
+            description = "채용담당자가 이력서 채팅에 진입할 때 세션을 조회하거나 생성합니다.\n\n" +
+                    "- 기존 세션이 있으면 해당 세션 정보를 반환합니다.\n" +
+                    "- 기존 세션이 없으면 새로 생성하여 반환합니다.\n" +
+                    "- 메시지 전송 없이 세션 정보만 가져옵니다.\n" +
+                    "- 인증이 필요하지 않은 public 엔드포인트입니다."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "세션 조회/생성 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "data": {
+                                        "sessionToken": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                                        "resumeSlug": "123e4567-e89b-12d3-a456-426614174000",
+                                        "resumeTitle": "백엔드 개발자 이력서",
+                                        "recruiterEmail": "recruiter@company.com",
+                                        "recruiterName": "김채용",
+                                        "recruiterCompany": "ABC회사",
+                                        "totalMessages": 5,
+                                        "lastMessageAt": "2024-02-14T10:30:00",
+                                        "createdAt": "2024-02-13T09:00:00"
+                                      },
+                                      "timestamp": "2024-02-14T10:30:00"
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 (유효성 검증 실패)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "error": {
+                                        "code": "C001",
+                                        "message": "올바른 이메일 형식이 아닙니다"
+                                      },
+                                      "timestamp": "2024-02-14T10:30:00"
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "이력서를 찾을 수 없음",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "error": {
+                                        "code": "R001",
+                                        "message": "이력서를 찾을 수 없습니다"
+                                      },
+                                      "timestamp": "2024-02-14T10:30:00"
+                                    }
+                                    """)
+                    )
+            )
+    })
+    @PostMapping("/chat/{resumeSlug}/enter")
+    public ResponseEntity<ApiResponse<ChatDto.EnterSessionResponse>> enterChatSession(
+            @Parameter(description = "이력서 고유 식별자 (UUID)", required = true)
+            @PathVariable("resumeSlug") UUID resumeSlug,
+            @Valid @RequestBody ChatDto.EnterSessionRequest request) {
+
+        ChatDto.EnterSessionResponse response = chatService.enterChatSession(resumeSlug, request);
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "채용담당자용 메시지 조회",
+            description = "채용담당자가 특정 채팅 세션의 메시지 목록을 조회합니다.\n\n" +
+                    "- 세션 정보와 메시지 목록을 함께 반환합니다.\n" +
+                    "- 인증이 필요하지 않은 public 엔드포인트입니다."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "data": {
+                                        "session": {
+                                          "sessionToken": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                                          "resumeSlug": "123e4567-e89b-12d3-a456-426614174000",
+                                          "resumeTitle": "백엔드 개발자 이력서",
+                                          "recruiterEmail": "recruiter@company.com",
+                                          "recruiterName": "김채용",
+                                          "recruiterCompany": "ABC회사",
+                                          "totalMessages": 5,
+                                          "unreadMessages": 0,
+                                          "lastMessageAt": "2024-02-14T10:30:00",
+                                          "createdAt": "2024-02-13T09:00:00"
+                                        },
+                                        "messages": [
+                                          {
+                                            "messageId": "m1n2o3p4-q5r6-7890-stuv-wx1234567890",
+                                            "message": "안녕하세요",
+                                            "senderType": "RECRUITER",
+                                            "readStatus": true,
+                                            "sentAt": "2024-02-13T09:00:00"
+                                          }
+                                        ]
+                                      },
+                                      "timestamp": "2024-02-14T10:30:00"
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "채팅 세션을 찾을 수 없음",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "error": {
+                                        "code": "S001",
+                                        "message": "채팅 세션을 찾을 수 없습니다"
+                                      },
+                                      "timestamp": "2024-02-14T10:30:00"
+                                    }
+                                    """)
+                    )
+            )
+    })
+    @GetMapping("/chat/session/{sessionToken}/messages")
+    public ResponseEntity<ApiResponse<ChatDto.ChatDetailResponse>> getRecruiterSessionMessages(
+            @Parameter(description = "채팅 세션 토큰", required = true)
+            @PathVariable("sessionToken") String sessionToken) {
+
+        ChatDto.ChatDetailResponse response = chatService.getRecruiterSessionMessages(sessionToken);
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "채용담당자 메시지 전송 (sessionToken 기반)",
+            description = "채용담당자가 기존 채팅 세션에 메시지를 전송합니다.\n\n" +
+                    "- sessionToken을 알고 있어야 합니다.\n" +
+                    "- 인증이 필요하지 않은 public 엔드포인트입니다."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "201",
+                    description = "메시지 전송 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "data": {
+                                        "sessionToken": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                                        "messageId": "m2n3o4p5-q6r7-8901-stuv-wx2345678901",
+                                        "message": "면접 일정 조율 가능한가요?",
+                                        "sentAt": "2024-02-14T10:30:00"
+                                      },
+                                      "timestamp": "2024-02-14T10:30:00"
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 (유효성 검증 실패)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "error": {
+                                        "code": "C001",
+                                        "message": "메시지 내용은 필수입니다"
+                                      },
+                                      "timestamp": "2024-02-14T10:30:00"
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "채팅 세션을 찾을 수 없음",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "error": {
+                                        "code": "S001",
+                                        "message": "채팅 세션을 찾을 수 없습니다"
+                                      },
+                                      "timestamp": "2024-02-14T10:30:00"
+                                    }
+                                    """)
+                    )
+            )
+    })
+    @PostMapping("/chat/session/{sessionToken}/send")
+    public ResponseEntity<ApiResponse<ChatDto.RecruiterSendMessageResponse>> sendRecruiterMessage(
+            @Parameter(description = "채팅 세션 토큰", required = true)
+            @PathVariable("sessionToken") String sessionToken,
+            @Valid @RequestBody ChatDto.RecruiterSendMessageRequest request) {
+
+        ChatDto.RecruiterSendMessageResponse response = chatService.sendRecruiterMessage(sessionToken, request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "채용담당자 메시지 전송 (resumeSlug 기반)",
             description = "채용담당자가 지원자의 이력서에 첫 메시지를 전송하거나 기존 채팅 세션에 메시지를 전송합니다.\n\n" +
                     "- 동일한 이력서와 채용담당자 이메일로 첫 요청 시 새로운 채팅 세션이 생성됩니다.\n" +
                     "- 이후 동일한 조합으로 요청 시 기존 세션에 메시지가 추가됩니다.\n" +
@@ -98,7 +322,7 @@ public class ChatController {
     @PostMapping("/chat/{resumeSlug}/send")
     public ResponseEntity<ApiResponse<ChatDto.SendMessageResponse>> sendMessage(
             @Parameter(description = "이력서 고유 식별자 (UUID)", required = true)
-            @PathVariable UUID resumeSlug,
+            @PathVariable("resumeSlug") UUID resumeSlug,
             @Valid @RequestBody ChatDto.SendMessageRequest request) {
 
         ChatDto.SendMessageResponse response = chatService.sendMessage(resumeSlug, request);
@@ -204,7 +428,7 @@ public class ChatController {
     public ResponseEntity<ApiResponse<ChatDto.ResumeChatsResponse>> getResumeChats(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
             @Parameter(description = "이력서 고유 식별자 (UUID)", required = true)
-            @PathVariable UUID resumeSlug) {
+            @PathVariable("resumeSlug") UUID resumeSlug) {
 
         ChatDto.ResumeChatsResponse response = chatService.getResumeChats(
                 userDetails.getUuid(),
@@ -322,7 +546,7 @@ public class ChatController {
     public ResponseEntity<ApiResponse<ChatDto.ChatDetailResponse>> getSessionMessages(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
             @Parameter(description = "채팅 세션 토큰", required = true)
-            @PathVariable String sessionToken) {
+            @PathVariable("sessionToken") String sessionToken) {
 
         ChatDto.ChatDetailResponse response = chatService.getSessionMessages(
                 userDetails.getUuid(),
@@ -433,7 +657,7 @@ public class ChatController {
     public ResponseEntity<ApiResponse<ChatDto.ApplicantSendMessageResponse>> sendMessageByApplicant(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
             @Parameter(description = "채팅 세션 토큰", required = true)
-            @PathVariable String sessionToken,
+            @PathVariable("sessionToken") String sessionToken,
             @Valid @RequestBody ChatDto.ApplicantSendMessageRequest request) {
 
         ChatDto.ApplicantSendMessageResponse response = chatService.sendMessageByApplicant(

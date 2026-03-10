@@ -218,4 +218,38 @@ public class ChatService {
     public ChatMessage saveMessage(ChatMessage message) {
         return chatMessageRepository.save(message);
     }
+
+    /**
+     * WebSocket 메시지 저장 및 세션 업데이트
+     *
+     * @param sessionToken 세션 토큰
+     * @param senderType 발신자 타입
+     * @param content 메시지 내용
+     * @param applicantUuid 지원자 UUID (지원자인 경우에만 제공, 채용담당자는 null)
+     * @return 저장된 메시지
+     */
+    @Transactional
+    public ChatMessage saveMessageAndUpdateSession(String sessionToken, SenderType senderType, String content, UUID applicantUuid) {
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        // 지원자인 경우 권한 검증
+        if (senderType == SenderType.APPLICANT && applicantUuid != null) {
+            if (!session.getResume().getApplicant().getUuid().equals(applicantUuid)) {
+                log.error("지원자의 세션 접근 권한 없음 - applicantUuid: {}, sessionToken: {}",
+                        applicantUuid, sessionToken);
+                throw new BusinessException(ErrorCode.SESSION_ACCESS_DENIED);
+            }
+        }
+
+        ChatMessage message = ChatMessage.createMessage(session, senderType, content);
+        chatMessageRepository.save(message);
+
+        session.incrementMessageCount();
+
+        log.info("WebSocket 메시지 저장 완료 - sessionToken: {}, messageId: {}, senderType: {}",
+                sessionToken, message.getMessageId(), senderType);
+
+        return message;
+    }
 }

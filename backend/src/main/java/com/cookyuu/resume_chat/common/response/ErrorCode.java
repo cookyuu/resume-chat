@@ -35,6 +35,8 @@ public enum ErrorCode {
     SESSION_NOT_FOUND("S001", "채팅 세션을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     INVALID_SESSION_TOKEN("S002", "유효하지 않은 세션 토큰입니다", HttpStatus.UNAUTHORIZED),
     SESSION_EXPIRED("S003", "세션이 만료되었습니다", HttpStatus.UNAUTHORIZED),
+    SESSION_ACCESS_DENIED("S004", "채팅 세션 접근 권한이 없습니다", HttpStatus.FORBIDDEN),
+    WEBSOCKET_AUTH_REQUIRED("S005", "WebSocket 연결에 인증이 필요합니다", HttpStatus.UNAUTHORIZED),
 
     // File
     INVALID_FILE("F001", "유효하지 않은 파일입니다", HttpStatus.BAD_REQUEST),

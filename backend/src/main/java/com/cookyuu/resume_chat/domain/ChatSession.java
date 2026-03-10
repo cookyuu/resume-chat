@@ -50,19 +50,6 @@ public class ChatSession extends BaseTimeEntity {
     @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChatMessage> chatMessages = new ArrayList<>();
 
-    @PrePersist
-    public void prePersist() {
-        if (this.sessionToken == null) {
-            this.sessionToken = UUID.randomUUID().toString();
-        }
-        if (!this.active) {
-            this.active = true;
-        }
-        if (this.totalMessages == 0) {
-            this.totalMessages = 0;
-        }
-    }
-
     public static ChatSession createNewSession(Resume resume, String recruiterName,
                                                 String recruiterEmail, String recruiterCompany) {
         return ChatSession.builder()

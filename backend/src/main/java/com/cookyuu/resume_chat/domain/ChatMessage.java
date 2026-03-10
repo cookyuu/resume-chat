@@ -35,16 +35,6 @@ public class ChatMessage extends BaseTimeEntity {
     @Column(name = "read_status", nullable = false)
     private boolean readStatus;
 
-    @PrePersist
-    public void prePersist() {
-        if (this.messageId == null) {
-            this.messageId = UUID.randomUUID();
-        }
-        if (!this.readStatus) {
-            this.readStatus = false;
-        }
-    }
-
     public static ChatMessage createMessage(ChatSession session, SenderType senderType, String content) {
         return ChatMessage.builder()
                 .messageId(UUID.randomUUID())

@@ -110,32 +110,6 @@ class ResumeEntityTest {
     }
 
     @Test
-    @DisplayName("resumeSlug가 null일 때 prePersist에서 자동 생성")
-    void prePersist_GeneratesResumeSlug() {
-        // Given
-        Applicant applicant = Applicant.builder()
-                .uuid(UUID.randomUUID())
-                .email("test@example.com")
-                .name("홍길동")
-                .password("password")
-                .build();
-
-        Resume resume = Resume.builder()
-                .applicant(applicant)
-                .title("이력서")
-                .filePath("file.pdf")
-                .originalFileName("resume.pdf")
-                .build();
-
-        // When
-        resume.prePersist();
-
-        // Then
-        assertThat(resume.getResumeSlug()).isNotNull();
-        assertThat(resume.getViewCnt()).isEqualTo(0);
-    }
-
-    @Test
     @DisplayName("description이 null인 경우 테스트")
     void createNewResume_WithNullDescription() {
         // Given

@@ -43,16 +43,6 @@ public class Resume extends BaseTimeEntity {
     @OneToMany(mappedBy = "resume", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChatSession> chatSessions = new ArrayList<>();
 
-    @PrePersist
-    public void prePersist() {
-        if (this.resumeSlug == null) {
-            this.resumeSlug = UUID.randomUUID();
-        }
-        if (this.viewCnt == 0) {
-            this.viewCnt = 0;
-        }
-    }
-
     public static Resume createNewResume(Applicant applicant, String title, String description,
                                          String filePath, String originalFileName) {
         return Resume.builder()

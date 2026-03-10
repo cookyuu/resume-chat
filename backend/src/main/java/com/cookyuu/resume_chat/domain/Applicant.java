@@ -39,13 +39,6 @@ public class Applicant extends BaseTimeEntity {
 
     private int loginFailCnt;
 
-    @PrePersist
-    public void prePersist() {
-        if (this.uuid == null) {
-            this.uuid = UUID.randomUUID();
-        }
-    }
-
     public static Applicant createNewApplicant(String email, String name, String encodedPassword) {
         return Applicant.builder()
                 .uuid(UUID.randomUUID())

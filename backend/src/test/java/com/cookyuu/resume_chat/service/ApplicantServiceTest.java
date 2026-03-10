@@ -3,7 +3,7 @@ package com.cookyuu.resume_chat.service;
 import com.cookyuu.resume_chat.command.ApplicantCommand;
 import com.cookyuu.resume_chat.common.exception.BusinessException;
 import com.cookyuu.resume_chat.common.response.ErrorCode;
-import com.cookyuu.resume_chat.entity.Applicant;
+import com.cookyuu.resume_chat.domain.Applicant;
 import com.cookyuu.resume_chat.repository.ApplicantRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

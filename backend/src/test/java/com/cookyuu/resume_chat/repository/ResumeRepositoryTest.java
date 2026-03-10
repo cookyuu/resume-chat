@@ -1,9 +1,9 @@
 package com.cookyuu.resume_chat.repository;
 
-import com.cookyuu.resume_chat.entity.Applicant;
-import com.cookyuu.resume_chat.entity.ChatMessage;
-import com.cookyuu.resume_chat.entity.ChatSession;
-import com.cookyuu.resume_chat.entity.Resume;
+import com.cookyuu.resume_chat.domain.Applicant;
+import com.cookyuu.resume_chat.domain.ChatMessage;
+import com.cookyuu.resume_chat.domain.ChatSession;
+import com.cookyuu.resume_chat.domain.Resume;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

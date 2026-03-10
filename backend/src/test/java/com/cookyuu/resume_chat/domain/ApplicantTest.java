@@ -1,4 +1,4 @@
-package com.cookyuu.resume_chat.entity;
+package com.cookyuu.resume_chat.domain;
 
 import com.cookyuu.resume_chat.common.enums.ApplicantStatus;
 import org.junit.jupiter.api.DisplayName;

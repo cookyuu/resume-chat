@@ -2,7 +2,7 @@ package com.cookyuu.resume_chat.repository;
 
 import com.cookyuu.resume_chat.common.enums.ApplicantStatus;
 import com.cookyuu.resume_chat.config.TestJpaConfig;
-import com.cookyuu.resume_chat.entity.Applicant;
+import com.cookyuu.resume_chat.domain.Applicant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

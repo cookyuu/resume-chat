@@ -4,7 +4,7 @@ import com.cookyuu.resume_chat.command.ApplicantCommand;
 import com.cookyuu.resume_chat.common.exception.BusinessException;
 import com.cookyuu.resume_chat.common.response.ErrorCode;
 import com.cookyuu.resume_chat.dto.ApplicantDto;
-import com.cookyuu.resume_chat.entity.Applicant;
+import com.cookyuu.resume_chat.domain.Applicant;
 import com.cookyuu.resume_chat.repository.ApplicantRepository;
 import com.cookyuu.resume_chat.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;

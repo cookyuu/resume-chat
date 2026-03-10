@@ -1,8 +1,8 @@
 package com.cookyuu.resume_chat.dto;
 
 import com.cookyuu.resume_chat.common.enums.SenderType;
-import com.cookyuu.resume_chat.entity.ChatMessage;
-import com.cookyuu.resume_chat.entity.ChatSession;
+import com.cookyuu.resume_chat.domain.ChatMessage;
+import com.cookyuu.resume_chat.domain.ChatSession;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

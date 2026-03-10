@@ -1,4 +1,4 @@
-package com.cookyuu.resume_chat.common.entity;
+package com.cookyuu.resume_chat.common.domain;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.Column;

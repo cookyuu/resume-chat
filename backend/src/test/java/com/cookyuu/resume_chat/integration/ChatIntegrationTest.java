@@ -2,10 +2,10 @@ package com.cookyuu.resume_chat.integration;
 
 import com.cookyuu.resume_chat.common.enums.SenderType;
 import com.cookyuu.resume_chat.dto.ChatDto;
-import com.cookyuu.resume_chat.entity.Applicant;
-import com.cookyuu.resume_chat.entity.ChatMessage;
-import com.cookyuu.resume_chat.entity.ChatSession;
-import com.cookyuu.resume_chat.entity.Resume;
+import com.cookyuu.resume_chat.domain.Applicant;
+import com.cookyuu.resume_chat.domain.ChatMessage;
+import com.cookyuu.resume_chat.domain.ChatSession;
+import com.cookyuu.resume_chat.domain.Resume;
 import com.cookyuu.resume_chat.repository.ApplicantRepository;
 import com.cookyuu.resume_chat.repository.ChatMessageRepository;
 import com.cookyuu.resume_chat.repository.ChatSessionRepository;

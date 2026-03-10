@@ -1,6 +1,6 @@
 package com.cookyuu.resume_chat.dto;
 
-import com.cookyuu.resume_chat.entity.Resume;
+import com.cookyuu.resume_chat.domain.Resume;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;

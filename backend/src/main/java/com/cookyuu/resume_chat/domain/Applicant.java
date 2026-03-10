@@ -1,6 +1,6 @@
-package com.cookyuu.resume_chat.entity;
+package com.cookyuu.resume_chat.domain;
 
-import com.cookyuu.resume_chat.common.entity.BaseTimeEntity;
+import com.cookyuu.resume_chat.common.domain.BaseTimeEntity;
 import com.cookyuu.resume_chat.common.enums.ApplicantStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;

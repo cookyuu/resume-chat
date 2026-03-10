@@ -1,6 +1,6 @@
 package com.cookyuu.resume_chat.repository;
 
-import com.cookyuu.resume_chat.entity.Applicant;
+import com.cookyuu.resume_chat.domain.Applicant;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

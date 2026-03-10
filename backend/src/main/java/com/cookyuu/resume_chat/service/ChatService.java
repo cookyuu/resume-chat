@@ -201,4 +201,21 @@ public class ChatService {
 
         return ChatDto.RecruiterSendMessageResponse.from(session, message);
     }
+
+    /**
+     * 세션 토큰으로 세션 조회 (WebSocket용)
+     */
+    @Transactional(readOnly = true)
+    public ChatSession getSessionByToken(String sessionToken) {
+        return chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+    }
+
+    /**
+     * 메시지 저장 (WebSocket용)
+     */
+    @Transactional
+    public ChatMessage saveMessage(ChatMessage message) {
+        return chatMessageRepository.save(message);
+    }
 }

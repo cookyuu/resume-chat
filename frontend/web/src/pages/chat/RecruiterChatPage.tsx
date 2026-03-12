@@ -14,9 +14,6 @@ import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
 const STORAGE_KEY_PREFIX = 'recruiter_session_';
 
 export function RecruiterChatPage() {
-  // 다크모드 초기화 (AppLayout 없는 public 페이지)
-  useDarkMode();
-
   const { resumeSlug } = useParams<{ resumeSlug: string }>();
   const [session, setSession] = useState<RecruiterEnterResponse | null>(() => {
     // localStorage에서 세션 복원 시도
@@ -148,7 +145,9 @@ function RecruiterEntryModal({
 function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
   const { data, isLoading, isError } = useRecruiterMessages(session.sessionToken);
   const sendMutation = useSendRecruiterChatMessage(session.sessionToken);
-  const { isDark, toggleDarkMode } = useDarkMode();
+
+  // 세션별 독립 다크모드
+  const { isDark, toggleDarkMode } = useDarkMode({ sessionToken: session.sessionToken });
 
   const [message, setMessage] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('DISCONNECTED');

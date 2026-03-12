@@ -7,12 +7,17 @@ import { getWebSocketClient, type ConnectionStatus } from '@/shared/api/websocke
 import { useChatWebSocket } from '@/shared/hooks/useChatWebSocket';
 import { useTypingIndicator } from '@/shared/hooks/useTypingIndicator';
 import { chatQueryKeys } from '@/shared/lib/queryKeys';
+import { useDarkMode } from '@/shared/hooks/useDarkMode';
+import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
 
 export function ChatPage() {
   const { sessionToken } = useParams<{ sessionToken: string }>();
   const { data, isLoading, isError } = useSessionMessages(sessionToken!);
   const resumeSlug = data?.session?.resumeSlug;
   const sendMutation = useSendApplicantMessage(sessionToken!, resumeSlug);
+
+  // 세션별 독립 다크모드
+  const { isDark, toggleDarkMode } = useDarkMode({ sessionToken });
 
   const [message, setMessage] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('DISCONNECTED');
@@ -125,6 +130,18 @@ export function ChatPage() {
               : '오프라인'}
           </span>
         </div>
+        {/* 다크모드 토글 */}
+        <button
+          onClick={toggleDarkMode}
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0"
+          aria-label="다크모드 토글"
+        >
+          {isDark ? (
+            <SunIcon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+          ) : (
+            <MoonIcon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+          )}
+        </button>
       </div>
 
       {/* Messages */}

@@ -1,17 +1,47 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useEnterRecruiterChat, useRecruiterMessages, useSendRecruiterChatMessage } from '@/features/chat';
 import type { RecruiterEnterResponse } from '@/entities/chat';
-import { Button, Input, Skeleton, EmptyState } from '@/shared/ui';
+import { Button, Input, Skeleton, EmptyState, WebSocketDebugger } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/date';
+import { getWebSocketClient, type ConnectionStatus } from '@/shared/api/websocket';
+import { useChatWebSocket } from '@/shared/hooks/useChatWebSocket';
+import { recruiterChatQueryKeys } from '@/shared/lib/queryKeys';
+
+const STORAGE_KEY_PREFIX = 'recruiter_session_';
 
 export function RecruiterChatPage() {
   const { resumeSlug } = useParams<{ resumeSlug: string }>();
-  const [session, setSession] = useState<RecruiterEnterResponse | null>(null);
+  const [session, setSession] = useState<RecruiterEnterResponse | null>(() => {
+    // localStorage에서 세션 복원 시도
+    try {
+      const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${resumeSlug}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // 세션 유효성 간단 체크 (필요시 만료 시간 체크 추가 가능)
+        if (parsed.sessionToken && parsed.resumeSlug === resumeSlug) {
+          return parsed;
+        }
+      }
+    } catch (error) {
+      console.error('[RecruiterChatPage] Failed to restore session:', error);
+    }
+    return null;
+  });
+
+  const handleEnter = (newSession: RecruiterEnterResponse) => {
+    setSession(newSession);
+    // localStorage에 세션 저장
+    try {
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}${resumeSlug}`, JSON.stringify(newSession));
+    } catch (error) {
+      console.error('[RecruiterChatPage] Failed to save session:', error);
+    }
+  };
 
   return (
     <>
-      {!session && <RecruiterEntryModal resumeSlug={resumeSlug!} onEnter={setSession} />}
+      {!session && <RecruiterEntryModal resumeSlug={resumeSlug!} onEnter={handleEnter} />}
       {session && <RecruiterChatRoom session={session} />}
     </>
   );
@@ -114,11 +144,37 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
   const sendMutation = useSendRecruiterChatMessage(session.sessionToken);
 
   const [message, setMessage] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('DISCONNECTED');
+  const [applicantOnline, setApplicantOnline] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [data?.messages]);
+
+  // ✅ queryKey를 메모이제이션하여 참조 동일성 유지
+  const queryKey = useMemo(
+    () => recruiterChatQueryKeys.messages(session.sessionToken),
+    [session.sessionToken]
+  );
+
+  // ✅ 콜백 함수를 useCallback으로 메모이제이션
+  const handleStatusChange = useCallback((status: ConnectionStatus) => {
+    setConnectionStatus(status);
+  }, []);
+
+  const handlePresenceChange = useCallback((online: boolean) => {
+    setApplicantOnline(online);
+  }, []);
+
+  // WebSocket 연결 및 구독 (커스텀 훅 사용)
+  useChatWebSocket({
+    sessionToken: session.sessionToken,
+    queryKey,
+    onStatusChange: handleStatusChange,
+    onPresenceChange: handlePresenceChange,
+    counterpartType: 'APPLICANT',
+  });
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,20 +200,48 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
   if (isError) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-red-500">메시지를 불러올 수 없습니다.</p>
+        <div className="text-center">
+          <p className="text-red-500 mb-4">메시지를 불러올 수 없습니다.</p>
+          <Button onClick={() => window.location.reload()}>다시 시도</Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <>
+      <WebSocketDebugger />
+      <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
       <div className="px-4 py-3 border-b bg-white flex items-center gap-4">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h2 className="font-semibold truncate">{session.resumeTitle}</h2>
           <p className="text-xs text-gray-500 truncate">
             {session.recruiterName} &middot; {session.recruiterCompany}
           </p>
+        </div>
+        {/* 접속 상태 표시 */}
+        <div className="flex items-center gap-1.5 text-xs shrink-0">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              connectionStatus === 'CONNECTED' && applicantOnline
+                ? 'bg-green-500'
+                : connectionStatus === 'CONNECTING' || connectionStatus === 'RECONNECTING'
+                ? 'bg-yellow-500 animate-pulse'
+                : 'bg-gray-400'
+            }`}
+          />
+          <span className="text-gray-600">
+            {connectionStatus === 'CONNECTING'
+              ? '연결 중...'
+              : connectionStatus === 'RECONNECTING'
+              ? '재연결 중...'
+              : connectionStatus === 'CONNECTED'
+              ? applicantOnline
+                ? '접속중'
+                : '미접속'
+              : '오프라인'}
+          </span>
         </div>
       </div>
 
@@ -210,6 +294,20 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
           전송
         </Button>
       </form>
-    </div>
+
+      {/* 재연결 버튼 (연결 실패 시에만 표시) */}
+      {connectionStatus === 'DISCONNECTED' && (
+        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-3">
+          <span className="text-sm">연결이 끊어졌습니다</span>
+          <Button
+            onClick={() => getWebSocketClient().manualReconnect()}
+            className="bg-white text-red-500 hover:bg-gray-100 text-sm px-3 py-1"
+          >
+            다시 연결
+          </Button>
+        </div>
+      )}
+      </div>
+    </>
   );
 }

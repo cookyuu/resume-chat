@@ -9,12 +9,16 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  define: {
+    global: 'window',
+  },
   server: {
-    port: 3000,
+    port: 31000,
     proxy: {
       '/api': {
         target: 'http://localhost:7777',
         changeOrigin: true,
+        ws: true, // WebSocket 프록시 활성화
       },
     },
   },

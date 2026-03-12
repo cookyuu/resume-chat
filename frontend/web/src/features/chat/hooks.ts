@@ -13,14 +13,13 @@ export function useEnterRecruiterChat(resumeSlug: string) {
   });
 }
 
-/** 채용담당자용 메시지 목록 조회 (5초 polling) */
+/** 채용담당자용 메시지 목록 조회 */
 export function useRecruiterMessages(sessionToken: string | null) {
   return useQuery({
     queryKey: queryKeys.recruiterChat.messages(sessionToken ?? ''),
     queryFn: () => chatApi.getRecruiterMessages(sessionToken!),
     select: (res) => res.data,
     enabled: !!sessionToken,
-    refetchInterval: 5000,
   });
 }
 

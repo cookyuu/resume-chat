@@ -1,8 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useSessionMessages, useSendApplicantMessage } from '@/features/chat';
-import { Button, Skeleton, EmptyState } from '@/shared/ui';
+import { Button, Skeleton, EmptyState, WebSocketDebugger } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/date';
+import { getWebSocketClient, type ConnectionStatus } from '@/shared/api/websocket';
+import { useChatWebSocket } from '@/shared/hooks/useChatWebSocket';
+import { chatQueryKeys } from '@/shared/lib/queryKeys';
 
 export function ChatPage() {
   const { sessionToken } = useParams<{ sessionToken: string }>();
@@ -11,11 +14,34 @@ export function ChatPage() {
   const sendMutation = useSendApplicantMessage(sessionToken!, resumeSlug);
 
   const [message, setMessage] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('DISCONNECTED');
+  const [recruiterOnline, setRecruiterOnline] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [data?.messages]);
+
+  // ✅ queryKey를 메모이제이션하여 참조 동일성 유지
+  const queryKey = useMemo(() => chatQueryKeys.messages(sessionToken!), [sessionToken]);
+
+  // ✅ 콜백 함수를 useCallback으로 메모이제이션
+  const handleStatusChange = useCallback((status: ConnectionStatus) => {
+    setConnectionStatus(status);
+  }, []);
+
+  const handlePresenceChange = useCallback((online: boolean) => {
+    setRecruiterOnline(online);
+  }, []);
+
+  // WebSocket 연결 및 구독 (커스텀 훅 사용)
+  useChatWebSocket({
+    sessionToken: sessionToken!,
+    queryKey,
+    onStatusChange: handleStatusChange,
+    onPresenceChange: handlePresenceChange,
+    counterpartType: 'RECRUITER',
+  });
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +65,10 @@ export function ChatPage() {
     return (
       <div className="p-6 max-w-4xl mx-auto">
         <Link to="/resumes" className="text-sm text-blue-600 hover:underline">&larr; 이력서 목록</Link>
-        <p className="mt-4 text-red-500">채팅 메시지를 불러올 수 없습니다.</p>
+        <div className="mt-4 text-center">
+          <p className="text-red-500 mb-4">채팅 메시지를 불러올 수 없습니다.</p>
+          <Button onClick={() => window.location.reload()}>다시 시도</Button>
+        </div>
       </div>
     );
   }
@@ -47,7 +76,9 @@ export function ChatPage() {
   const session = data?.session;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] max-w-4xl mx-auto">
+    <>
+      <WebSocketDebugger />
+      <div className="flex flex-col h-[calc(100vh-64px)] max-w-4xl mx-auto">
       {/* Header */}
       <div className="px-4 py-3 border-b bg-white flex items-center gap-4">
         <Link
@@ -57,13 +88,36 @@ export function ChatPage() {
           &larr; 돌아가기
         </Link>
         {session && (
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="font-semibold truncate">{session.recruiterName}</h2>
             <p className="text-xs text-gray-500 truncate">
               {session.recruiterCompany} &middot; {session.resumeTitle}
             </p>
           </div>
         )}
+        {/* 접속 상태 표시 */}
+        <div className="flex items-center gap-1.5 text-xs shrink-0">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              connectionStatus === 'CONNECTED' && recruiterOnline
+                ? 'bg-green-500'
+                : connectionStatus === 'CONNECTING' || connectionStatus === 'RECONNECTING'
+                ? 'bg-yellow-500 animate-pulse'
+                : 'bg-gray-400'
+            }`}
+          />
+          <span className="text-gray-600">
+            {connectionStatus === 'CONNECTING'
+              ? '연결 중...'
+              : connectionStatus === 'RECONNECTING'
+              ? '재연결 중...'
+              : connectionStatus === 'CONNECTED'
+              ? recruiterOnline
+                ? '접속중'
+                : '미접속'
+              : '오프라인'}
+          </span>
+        </div>
       </div>
 
       {/* Messages */}
@@ -113,6 +167,20 @@ export function ChatPage() {
         />
         <Button type="submit" loading={sendMutation.isPending} className="rounded-full px-5">전송</Button>
       </form>
-    </div>
+
+      {/* 재연결 버튼 (연결 실패 시에만 표시) */}
+      {connectionStatus === 'DISCONNECTED' && (
+        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-3">
+          <span className="text-sm">연결이 끊어졌습니다</span>
+          <Button
+            onClick={() => getWebSocketClient().manualReconnect()}
+            className="bg-white text-red-500 hover:bg-gray-100 text-sm px-3 py-1"
+          >
+            다시 연결
+          </Button>
+        </div>
+      )}
+      </div>
+    </>
   );
 }

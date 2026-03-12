@@ -13,3 +13,7 @@ export const queryKeys = {
     messages: (sessionToken: string) => ['recruiterChat', 'messages', sessionToken] as const,
   },
 } as const;
+
+// Exports for specific modules
+export const chatQueryKeys = queryKeys.chat;
+export const recruiterChatQueryKeys = queryKeys.recruiterChat;

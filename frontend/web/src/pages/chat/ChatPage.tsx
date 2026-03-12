@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useSessionMessages, useSendApplicantMessage } from '@/features/chat';
-import { Button, Skeleton, EmptyState, WebSocketDebugger, TypingIndicator } from '@/shared/ui';
+import { Button, Skeleton, EmptyState, TypingIndicator } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/date';
 import { getWebSocketClient, type ConnectionStatus } from '@/shared/api/websocket';
 import { useChatWebSocket } from '@/shared/hooks/useChatWebSocket';
@@ -85,9 +85,7 @@ export function ChatPage() {
   const session = data?.session;
 
   return (
-    <>
-      <WebSocketDebugger />
-      <div className="flex flex-col h-[calc(100vh-64px)] max-w-4xl mx-auto">
+    <div className="flex flex-col h-[calc(100vh-64px)] max-w-4xl mx-auto">
       {/* Header */}
       <div className="px-4 py-3 border-b dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center gap-4 transition-colors">
         <Link
@@ -194,7 +192,6 @@ export function ChatPage() {
           </Button>
         </div>
       )}
-      </div>
-    </>
+    </div>
   );
 }

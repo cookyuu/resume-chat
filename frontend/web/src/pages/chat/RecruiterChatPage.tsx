@@ -2,16 +2,20 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useEnterRecruiterChat, useRecruiterMessages, useSendRecruiterChatMessage } from '@/features/chat';
 import type { RecruiterEnterResponse } from '@/entities/chat';
-import { Button, Input, Skeleton, EmptyState, WebSocketDebugger, TypingIndicator } from '@/shared/ui';
+import { Button, Input, Skeleton, EmptyState, TypingIndicator } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/date';
 import { getWebSocketClient, type ConnectionStatus } from '@/shared/api/websocket';
 import { useChatWebSocket } from '@/shared/hooks/useChatWebSocket';
 import { useTypingIndicator } from '@/shared/hooks/useTypingIndicator';
 import { recruiterChatQueryKeys } from '@/shared/lib/queryKeys';
+import { useDarkMode } from '@/shared/hooks/useDarkMode';
 
 const STORAGE_KEY_PREFIX = 'recruiter_session_';
 
 export function RecruiterChatPage() {
+  // 다크모드 초기화 (AppLayout 없는 public 페이지)
+  useDarkMode();
+
   const { resumeSlug } = useParams<{ resumeSlug: string }>();
   const [session, setSession] = useState<RecruiterEnterResponse | null>(() => {
     // localStorage에서 세션 복원 시도
@@ -92,9 +96,9 @@ function RecruiterEntryModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md mx-4 p-6 bg-white rounded-xl shadow-lg">
-        <h2 className="text-xl font-bold text-center mb-1">채용 담당자 채팅</h2>
-        <p className="text-sm text-gray-500 text-center mb-5">
+      <div className="w-full max-w-md mx-4 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg transition-colors">
+        <h2 className="text-xl font-bold text-center mb-1 dark:text-white">채용 담당자 채팅</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-5">
           정보를 입력하고 지원자와 대화를 시작하세요
         </p>
 
@@ -218,9 +222,7 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
   }
 
   return (
-    <>
-      <WebSocketDebugger />
-      <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Header */}
       <div className="px-4 py-3 border-b dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center gap-4 transition-colors">
         <div className="min-w-0 flex-1">
@@ -321,7 +323,6 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
           </Button>
         </div>
       )}
-      </div>
-    </>
+    </div>
   );
 }

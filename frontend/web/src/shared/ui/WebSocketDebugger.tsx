@@ -14,8 +14,6 @@ export function WebSocketDebugger() {
   useEffect(() => {
     if (import.meta.env.PROD) return; // 프로덕션에서는 비활성화
 
-    const wsClient = getWebSocketClient();
-
     // 기존 console.log를 가로채서 WebSocket 관련 로그만 캡처
     const originalLog = console.log;
     const originalWarn = console.warn;

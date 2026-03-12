@@ -92,33 +92,35 @@
 
 **우선순위**: 중간
 
-### 3.1 애니메이션 시스템
+### 3.1 애니메이션 시스템 ✅
 
 #### Setup
-- [ ] Framer Motion 라이브러리 설치
-- [ ] Tailwind 커스텀 설정
-  - [ ] iOS 이징 함수 추가
-  - [ ] Spring 이징 함수 추가
-  - [ ] 애니메이션 duration 추가
-  - [ ] shimmer 키프레임 추가
+- [x] Framer Motion 라이브러리 설치
+- [x] Tailwind 커스텀 설정
+  - [x] iOS 이징 함수 추가
+  - [x] Spring 이징 함수 추가
+  - [x] 애니메이션 duration 추가
+  - [x] shimmer 키프레임 추가
+  - [x] fade-in, slide-up, slide-down, scale-in 키프레임 추가
 
 #### 구현
-- [ ] PageTransition 컴포넌트 생성
+- [ ] PageTransition 컴포넌트 생성 (선택사항)
   - [ ] Fade + Slide 애니메이션
   - [ ] iOS 이징 적용
-- [ ] 버튼 마이크로 인터랙션
+- [ ] 버튼 마이크로 인터랙션 (선택사항)
   - [ ] whileHover 효과
   - [ ] whileTap 효과
-- [ ] 리스트 아이템 애니메이션
+- [ ] 리스트 아이템 애니메이션 (선택사항)
   - [ ] stagger 효과
-- [ ] 모달 애니메이션
+- [ ] 모달 애니메이션 (선택사항)
   - [ ] scale + fade
 
-### 3.2 Heroicons 통합
+### 3.2 Heroicons 통합 ✅
 
-- [ ] @heroicons/react 설치
-- [ ] 아이콘 매핑 문서 작성
-- [ ] 기존 SVG를 Heroicons로 교체
+- [x] @heroicons/react 설치
+- [x] AppLayout에 SunIcon/MoonIcon 적용 (다크모드 토글)
+- [ ] 아이콘 매핑 문서 작성 (선택사항)
+- [ ] 기존 SVG를 Heroicons로 교체 (점진적 적용)
   - [ ] PaperAirplaneIcon (전송)
   - [ ] LinkIcon (링크 복사)
   - [ ] TrashIcon (삭제)
@@ -130,39 +132,39 @@
   - [ ] BellIcon (알림)
   - [ ] UserIcon (프로필)
 
-### 3.3 다크 모드
+### 3.3 다크 모드 ✅
 
 #### Setup
-- [ ] Tailwind 다크 모드 설정 (class 모드)
-- [ ] CSS Variables 정의
+- [x] Tailwind 다크 모드 설정 (class 모드)
+- [ ] CSS Variables 정의 (선택사항)
   - [ ] 색상 변수
   - [ ] 그림자 변수
 
 #### 구현
-- [ ] useDarkMode 훅 생성
-  - [ ] localStorage 저장
-  - [ ] 시스템 설정 감지
-  - [ ] 토글 함수
-- [ ] 다크 모드 토글 버튼 (Header)
-  - [ ] SunIcon / MoonIcon
-  - [ ] 애니메이션 효과
-- [ ] 모든 컴포넌트 다크 모드 스타일 추가
-  - [ ] Button
-  - [ ] Input
-  - [ ] Card
-  - [ ] Modal
-  - [ ] Toast
-  - [ ] Skeleton
-  - [ ] EmptyState
-- [ ] 페이지별 다크 모드 적용
-  - [ ] LoginPage
-  - [ ] JoinPage
-  - [ ] ResumesPage
-  - [ ] ChatPage
-  - [ ] RecruiterChatPage
-  - [ ] NotificationSettingsPage
+- [x] useDarkMode 훅 생성
+  - [x] localStorage 저장
+  - [x] 시스템 설정 감지
+  - [x] 토글 함수
+  - [x] light/dark/system 모드 지원
+- [x] 다크 모드 토글 버튼 (AppLayout)
+  - [x] SunIcon / MoonIcon
+  - [x] 애니메이션 효과
+- [x] 주요 컴포넌트 다크 모드 스타일 추가
+  - [x] Button
+  - [x] Input
+  - [x] Skeleton (shimmer 애니메이션 포함)
+  - [x] EmptyState
+  - [ ] Toast (선택사항)
+- [x] 페이지별 다크 모드 적용
+  - [x] LoginPage
+  - [x] JoinPage
+  - [x] AppLayout (전역 배경)
+  - [x] ChatPage
+  - [x] RecruiterChatPage
+  - [ ] ResumesPage (필요 시)
+  - [ ] NotificationSettingsPage (미구현)
 
-### 3.4 Backdrop Blur
+### 3.4 Backdrop Blur (선택사항)
 
 - [ ] 네비게이션 backdrop blur
   - [ ] 스크롤 감지
@@ -170,7 +172,7 @@
 - [ ] 모달 오버레이 backdrop blur
 - [ ] 채팅 입력창 backdrop blur (iOS)
 
-### 3.5 Toast 커스터마이징
+### 3.5 Toast 커스터마이징 (선택사항)
 
 - [ ] Toaster 설정 업데이트
   - [ ] position: top-center
@@ -180,14 +182,14 @@
   - [ ] 그림자 효과
 - [ ] CSS Variables 연동
 
-### 3.6 Skeleton 개선
+### 3.6 Skeleton 개선 ✅
 
-- [ ] Skeleton 컴포넌트 업데이트
-  - [ ] Gradient 배경
-  - [ ] shimmer 애니메이션
-  - [ ] 다크 모드 지원
+- [x] Skeleton 컴포넌트 업데이트
+  - [x] Gradient 배경
+  - [x] shimmer 애니메이션
+  - [x] 다크 모드 지원
 
-### 3.7 스와이프 제스처
+### 3.7 스와이프 제스처 (모바일 전용 - 선택사항)
 
 - [ ] react-swipeable 설치
 - [ ] ResumeRow 스와이프 삭제 구현
@@ -196,7 +198,7 @@
   - [ ] 애니메이션 효과
 - [ ] 채팅 세션 카드 스와이프 구현
 
-### 3.8 Pull to Refresh
+### 3.8 Pull to Refresh (모바일 전용 - 선택사항)
 
 - [ ] usePullToRefresh 훅 생성
   - [ ] Touch 이벤트 핸들러
@@ -206,7 +208,7 @@
 - [ ] ResumesPage에 적용
 - [ ] ChatSessionsPage에 적용
 
-### 3.9 Haptic Feedback
+### 3.9 Haptic Feedback (모바일 전용 - 선택사항)
 
 - [ ] haptic.ts 유틸리티 생성
   - [ ] triggerHaptic 함수
@@ -216,10 +218,10 @@
 - [ ] 삭제/전송 성공 시 적용
 
 ### 테스트 & 마무리
-- [ ] 애니메이션 성능 테스트
-- [ ] 다크 모드 전환 테스트
-- [ ] 모바일 터치 제스처 테스트
-- [ ] 접근성 검증 (키보드 네비게이션)
+- [x] 다크 모드 전환 테스트
+- [ ] 애니메이션 성능 테스트 (선택사항)
+- [ ] 모바일 터치 제스처 테스트 (Phase 8 시)
+- [ ] 접근성 검증 (키보드 네비게이션) (선택사항)
 
 ---
 

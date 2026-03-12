@@ -26,9 +26,9 @@ export function JoinPage() {
   const passwordMismatch = touched.passwordConfirm && passwordConfirm.length > 0 && password !== passwordConfirm;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-sm">
-        <h1 className="text-2xl font-bold text-center mb-8">회원가입</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors">
+      <div className="w-full max-w-md p-8 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+        <h1 className="text-2xl font-bold text-center mb-8 dark:text-white">회원가입</h1>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input
             label="이메일"
@@ -75,9 +75,9 @@ export function JoinPage() {
             회원가입
           </Button>
         </form>
-        <p className="mt-4 text-center text-sm text-gray-500">
+        <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
           이미 계정이 있으신가요?{' '}
-          <Link to="/login" className="text-blue-600 hover:underline">로그인</Link>
+          <Link to="/login" className="text-blue-600 dark:text-blue-400 hover:underline">로그인</Link>
         </p>
       </div>
     </div>

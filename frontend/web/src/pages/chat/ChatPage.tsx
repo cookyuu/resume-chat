@@ -89,7 +89,7 @@ export function ChatPage() {
       <WebSocketDebugger />
       <div className="flex flex-col h-[calc(100vh-64px)] max-w-4xl mx-auto">
       {/* Header */}
-      <div className="px-4 py-3 border-b bg-white flex items-center gap-4">
+      <div className="px-4 py-3 border-b dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center gap-4 transition-colors">
         <Link
           to={session ? `/resumes/${session.resumeSlug}/chats` : '/resumes'}
           className="text-sm text-blue-600 hover:underline shrink-0"
@@ -98,8 +98,8 @@ export function ChatPage() {
         </Link>
         {session && (
           <div className="min-w-0 flex-1">
-            <h2 className="font-semibold truncate">{session.recruiterName}</h2>
-            <p className="text-xs text-gray-500 truncate">
+            <h2 className="font-semibold truncate dark:text-white">{session.recruiterName}</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
               {session.recruiterCompany} &middot; {session.resumeTitle}
             </p>
           </div>
@@ -115,7 +115,7 @@ export function ChatPage() {
                 : 'bg-gray-400'
             }`}
           />
-          <span className="text-gray-600">
+          <span className="text-gray-600 dark:text-gray-400">
             {connectionStatus === 'CONNECTING'
               ? '연결 중...'
               : connectionStatus === 'RECONNECTING'
@@ -130,7 +130,7 @@ export function ChatPage() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-900 transition-colors">
         {!data?.messages || data.messages.length === 0 ? (
           <EmptyState message="아직 메시지가 없습니다" />
         ) : (
@@ -142,10 +142,10 @@ export function ChatPage() {
                 className={`flex ${isApplicant ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${
+                  className={`max-w-[70%] px-4 py-2.5 rounded-2xl transition-colors ${
                     isApplicant
-                      ? 'bg-blue-600 text-white rounded-br-md'
-                      : 'bg-white border rounded-bl-md'
+                      ? 'bg-blue-600 dark:bg-blue-500 text-white rounded-br-md'
+                      : 'bg-white dark:bg-gray-800 border dark:border-gray-700 dark:text-white rounded-bl-md'
                   }`}
                 >
                   <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
@@ -167,10 +167,10 @@ export function ChatPage() {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSend} className="p-3 bg-white border-t flex items-center gap-2">
+      <form onSubmit={handleSend} className="p-3 bg-white dark:bg-gray-800 border-t dark:border-gray-700 flex items-center gap-2 transition-colors">
         <input
           type="text"
-          className="flex-1 px-4 py-2.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 px-4 py-2.5 border dark:border-gray-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors"
           placeholder="메시지를 입력하세요..."
           value={message}
           onChange={(e) => {

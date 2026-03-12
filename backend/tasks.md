@@ -89,23 +89,40 @@
 ### 2.4 이메일 알림
 
 #### Backend
-- [ ] Spring Mail 의존성 추가
-- [ ] application.yml 메일 설정
-  - [ ] Gmail SMTP 설정
-  - [ ] 환경변수 설정 (username, password)
-- [ ] EmailService 생성
-  - [ ] @Async 비동기 처리 설정
-  - [ ] sendNewMessageNotification 메서드
-  - [ ] sendNewSessionNotification 메서드
-  - [ ] HTML 템플릿 렌더링
-- [ ] HTML 이메일 템플릿 생성
-  - [ ] email-new-message.html
-  - [ ] email-new-session.html
-  - [ ] 반응형 디자인
-  - [ ] 채팅 링크 버튼
-- [ ] ChatService에 이메일 알림 통합
-  - [ ] 메시지 전송 시 알림 발송
-  - [ ] 알림 설정 확인 로직
+- [x] Spring Mail 의존성 추가 ✅
+- [x] application.yml 메일 설정 ✅
+  - [x] Gmail SMTP 설정 (smtp.gmail.com:587, TLS)
+  - [x] 환경변수 설정 (username, password)
+  - [x] .env 파일 생성 및 .gitignore 추가
+- [x] AsyncConfig 생성 ✅
+  - [x] @EnableAsync 설정
+  - [x] emailTaskExecutor Bean 생성 (Thread Pool: 2-5)
+- [x] EmailService 생성 ✅
+  - [x] @Async 비동기 처리
+  - [x] 5분 지연 알림 시스템 구현
+    - [x] scheduleNewMessageNotification() - 알림 예약
+    - [x] cancelNotification() - 읽으면 취소
+    - [x] PendingNotification 관리 (ConcurrentHashMap)
+    - [x] ScheduledExecutorService 사용
+  - [x] sendNewMessageEmail() - 새 메시지 알림
+  - [x] sendNewSessionNotification() - 신규 세션 알림
+  - [x] HTML 템플릿 내장 (buildNewMessageHtml, buildNewSessionHtml)
+- [x] HTML 이메일 템플릿 ✅
+  - [x] 새 메시지 알림 템플릿 (인라인 HTML)
+  - [x] 신규 세션 알림 템플릿 (인라인 HTML)
+  - [x] 반응형 디자인 (모바일 대응)
+  - [x] 그라디언트 헤더 디자인
+  - [x] 채팅 링크 버튼 (CTA)
+  - [x] 메시지 미리보기 박스
+- [ ] ChatService에 이메일 알림 통합 (선택)
+  - [ ] 메시지 전송 시 scheduleNewMessageNotification() 호출
+  - [ ] 메시지 읽음 처리 시 cancelNotification() 호출
+  - [ ] 신규 세션 생성 시 sendNewSessionNotification() 호출
+
+#### 알림 발송 정책
+- ✅ 읽지 않은 메시지 최초 발생 → 5분 타이머 시작
+- ✅ 5분 이내 읽으면 → 타이머 취소, 알림 발송 안 함
+- ✅ 5분 경과 후 → 1회만 알림 발송 (여러 메시지 포함)
 
 ### 2.5 브라우저 푸시 알림
 

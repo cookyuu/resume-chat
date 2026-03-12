@@ -29,7 +29,7 @@ file:
   allowed-extensions: pdf
 
 app:
-  frontend-url: http://localhost:3000
+  frontend-url: http://localhost:31000
 
 logging:
   level:

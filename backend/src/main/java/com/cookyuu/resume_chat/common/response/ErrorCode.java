@@ -37,6 +37,7 @@ public enum ErrorCode {
     SESSION_EXPIRED("S003", "세션이 만료되었습니다", HttpStatus.UNAUTHORIZED),
     SESSION_ACCESS_DENIED("S004", "채팅 세션 접근 권한이 없습니다", HttpStatus.FORBIDDEN),
     WEBSOCKET_AUTH_REQUIRED("S005", "WebSocket 연결에 인증이 필요합니다", HttpStatus.UNAUTHORIZED),
+    INVALID_MESSAGE_TYPE("S006", "지원하지 않는 메시지 타입입니다", HttpStatus.BAD_REQUEST),
 
     // File
     INVALID_FILE("F001", "유효하지 않은 파일입니다", HttpStatus.BAD_REQUEST),

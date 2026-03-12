@@ -115,7 +115,7 @@ CREATE TABLE rc_chat_message (
 
 ### 완료 기준
 - [x] 백엔드 서버 실행 가능 (http://localhost:8080)
-- [x] 프론트엔드 개발 서버 실행 가능 (http://localhost:3000)
+- [x] 프론트엔드 개발 서버 실행 가능 (http://localhost:31000)
 - [x] 데이터베이스 연결 정상
 - [x] Swagger UI 접근 가능
 

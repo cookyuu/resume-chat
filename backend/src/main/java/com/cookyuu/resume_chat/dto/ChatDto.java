@@ -1,12 +1,15 @@
 package com.cookyuu.resume_chat.dto;
 
+import com.cookyuu.resume_chat.common.enums.MessageType;
 import com.cookyuu.resume_chat.common.enums.SenderType;
 import com.cookyuu.resume_chat.domain.ChatMessage;
 import com.cookyuu.resume_chat.domain.ChatSession;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -262,6 +265,108 @@ public class ChatDto {
                     message.getContent(),
                     message.getCreatedAt()
             );
+        }
+    }
+
+    /**
+     * 페이지네이션 메시지 조회 응답 DTO
+     */
+    @Getter
+    @AllArgsConstructor
+    public static class PagedMessagesResponse {
+        private List<MessageInfo> content;
+        private int page;
+        private int size;
+        private long totalElements;
+        private int totalPages;
+        private boolean hasNext;
+        private boolean hasPrevious;
+    }
+
+    /**
+     * 증분 조회 메시지 응답 DTO (since timestamp or messageId)
+     */
+    @Getter
+    @AllArgsConstructor
+    public static class IncrementalMessagesResponse {
+        private List<MessageInfo> messages;
+        private int count;
+    }
+
+    /**
+     * WebSocket 채팅 메시지 DTO
+     *
+     * <p>WebSocket을 통해 브로드캐스트되는 실시간 채팅 메시지 형식입니다.</p>
+     *
+     * <h3>브로드캐스트 Destination</h3>
+     * <ul>
+     *   <li>클라이언트 구독: {@code /topic/session/{sessionToken}}</li>
+     *   <li>클라이언트 전송: {@code /app/chat/{sessionToken}}</li>
+     * </ul>
+     *
+     * <h3>필드 설명</h3>
+     * <ul>
+     *   <li><b>messageId</b>: 메시지 고유 식별자 (UUID)</li>
+     *   <li><b>sessionToken</b>: 채팅 세션 토큰</li>
+     *   <li><b>senderType</b>: 발신자 타입 (APPLICANT 또는 RECRUITER)</li>
+     *   <li><b>messageType</b>: 메시지 타입 (TEXT, IMAGE, FILE, SYSTEM)</li>
+     *   <li><b>content</b>: 메시지 내용</li>
+     *   <li><b>sentAt</b>: 전송 시각 (서버 시간 기준)</li>
+     * </ul>
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class WebSocketChatMessage {
+        /**
+         * 메시지 고유 식별자 (UUID)
+         */
+        private UUID messageId;
+
+        /**
+         * 채팅 세션 토큰
+         */
+        @NotBlank(message = "세션 토큰은 필수입니다")
+        private String sessionToken;
+
+        /**
+         * 발신자 타입 (APPLICANT 또는 RECRUITER)
+         */
+        @NotNull(message = "발신자 타입은 필수입니다")
+        private SenderType senderType;
+
+        /**
+         * 메시지 타입 (TEXT, IMAGE, FILE, SYSTEM)
+         * 기본값: TEXT
+         */
+        @NotNull(message = "메시지 타입은 필수입니다")
+        private MessageType messageType;
+
+        /**
+         * 메시지 내용
+         */
+        @NotBlank(message = "메시지 내용은 필수입니다")
+        @Size(min = 1, max = 1000, message = "메시지는 1자 이상 1000자 이하로 입력해주세요")
+        private String content;
+
+        /**
+         * 전송 시각 (서버 시간 기준)
+         */
+        private LocalDateTime sentAt;
+
+        /**
+         * ChatMessage 엔티티로부터 WebSocketChatMessage 생성
+         */
+        public static WebSocketChatMessage from(String sessionToken, ChatMessage message) {
+            return WebSocketChatMessage.builder()
+                    .messageId(message.getMessageId())
+                    .sessionToken(sessionToken)
+                    .senderType(message.getSenderType())
+                    .messageType(message.getMessageType())
+                    .content(message.getContent())
+                    .sentAt(message.getCreatedAt())
+                    .build();
         }
     }
 }

@@ -19,4 +19,4 @@ file:
   allowed-extensions: pdf
 
 app:
-  frontend-url: http://localhost:3000  # 프론트엔드 URL
+  frontend-url: http://localhost:31000  # 프론트엔드 URL

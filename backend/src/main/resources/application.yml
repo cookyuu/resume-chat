@@ -11,7 +11,7 @@ spring:
     host: smtp.gmail.com
     port: 587
     username: ${MAIL_USERNAME:biz.cookyuu@gmail.com}
-    password: ${MAIL_PASSWORD:}
+    password: ${MAIL_PASSWORD:hcmpsrxnjssxwfpj}
     properties:
       mail:
         smtp:
@@ -38,4 +38,4 @@ app:
   mail:
     from: ${MAIL_USERNAME:biz.cookyuu@gmail.com}
     from-name: Resume Chat
-    notification-delay-minutes: 5  # 알림 발송 지연 시간 (분)
+    notification-delay-minutes: 1  # 알림 발송 지연 시간 (분)

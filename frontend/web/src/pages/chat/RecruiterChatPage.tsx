@@ -9,6 +9,7 @@ import { useChatWebSocket } from '@/shared/hooks/useChatWebSocket';
 import { useTypingIndicator } from '@/shared/hooks/useTypingIndicator';
 import { recruiterChatQueryKeys } from '@/shared/lib/queryKeys';
 import { useDarkMode } from '@/shared/hooks/useDarkMode';
+import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
 
 const STORAGE_KEY_PREFIX = 'recruiter_session_';
 
@@ -147,6 +148,7 @@ function RecruiterEntryModal({
 function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
   const { data, isLoading, isError } = useRecruiterMessages(session.sessionToken);
   const sendMutation = useSendRecruiterChatMessage(session.sessionToken);
+  const { isDark, toggleDarkMode } = useDarkMode();
 
   const [message, setMessage] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('DISCONNECTED');
@@ -242,7 +244,7 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
                 : 'bg-gray-400'
             }`}
           />
-          <span className="text-gray-600">
+          <span className="text-gray-600 dark:text-gray-400">
             {connectionStatus === 'CONNECTING'
               ? '연결 중...'
               : connectionStatus === 'RECONNECTING'
@@ -254,6 +256,18 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
               : '오프라인'}
           </span>
         </div>
+        {/* 다크모드 토글 */}
+        <button
+          onClick={toggleDarkMode}
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0"
+          aria-label="다크모드 토글"
+        >
+          {isDark ? (
+            <SunIcon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+          ) : (
+            <MoonIcon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+          )}
+        </button>
       </div>
 
       {/* Messages */}

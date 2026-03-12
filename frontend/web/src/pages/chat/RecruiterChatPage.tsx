@@ -227,9 +227,12 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
       {/* Header */}
       <div className="px-4 py-3 border-b dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center gap-4 transition-colors">
         <div className="min-w-0 flex-1">
-          <h2 className="font-semibold truncate dark:text-white">{session.resumeTitle}</h2>
+          <h2 className="font-semibold truncate dark:text-white">
+            {data?.session?.applicantName || '지원자'}
+          </h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-            {session.recruiterName} &middot; {session.recruiterCompany}
+            {data?.session?.applicantEmail && `${data.session.applicantEmail} · `}
+            {data?.session?.resumeTitle || session.resumeTitle}
           </p>
         </div>
         {/* 접속 상태 표시 */}

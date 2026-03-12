@@ -36,6 +36,8 @@ export interface ChatSession {
   recruiterEmail: string;
   recruiterName: string;
   recruiterCompany: string;
+  applicantEmail?: string;  // 지원자 이메일 (백엔드 추가 필요)
+  applicantName?: string;   // 지원자 이름 (백엔드 추가 필요)
   totalMessages: number;
   unreadMessages: number;
   lastMessageAt: string;

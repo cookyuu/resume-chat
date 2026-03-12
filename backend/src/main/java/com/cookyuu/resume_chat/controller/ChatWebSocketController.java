@@ -59,7 +59,7 @@ public class ChatWebSocketController {
     @MessageMapping("/chat/{sessionToken}")
     @SendTo("/topic/session/{sessionToken}")
     public ChatDto.WebSocketChatMessage sendMessage(
-            @DestinationVariable String sessionToken,
+            @DestinationVariable("sessionToken") String sessionToken,
             ChatDto.WebSocketChatMessage message,
             SimpMessageHeaderAccessor headerAccessor
     ) {
@@ -143,7 +143,7 @@ public class ChatWebSocketController {
     @MessageMapping("/chat/{sessionToken}/typing")
     @SendTo("/topic/session/{sessionToken}/typing")
     public ChatDto.TypingEvent sendTypingIndicator(
-            @DestinationVariable String sessionToken,
+            @DestinationVariable("sessionToken") String sessionToken,
             ChatDto.TypingEvent typingEvent
     ) {
         log.debug("입력 중 이벤트 수신 - sessionToken: {}, senderName: {}, senderType: {}, typing: {}",

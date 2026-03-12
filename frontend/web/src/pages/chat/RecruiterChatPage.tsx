@@ -2,10 +2,11 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useEnterRecruiterChat, useRecruiterMessages, useSendRecruiterChatMessage } from '@/features/chat';
 import type { RecruiterEnterResponse } from '@/entities/chat';
-import { Button, Input, Skeleton, EmptyState, WebSocketDebugger } from '@/shared/ui';
+import { Button, Input, Skeleton, EmptyState, WebSocketDebugger, TypingIndicator } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/date';
 import { getWebSocketClient, type ConnectionStatus } from '@/shared/api/websocket';
 import { useChatWebSocket } from '@/shared/hooks/useChatWebSocket';
+import { useTypingIndicator } from '@/shared/hooks/useTypingIndicator';
 import { recruiterChatQueryKeys } from '@/shared/lib/queryKeys';
 
 const STORAGE_KEY_PREFIX = 'recruiter_session_';
@@ -146,6 +147,7 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
   const [message, setMessage] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('DISCONNECTED');
   const [applicantOnline, setApplicantOnline] = useState(false);
+  const [applicantTyping, setApplicantTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -174,6 +176,13 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
     onStatusChange: handleStatusChange,
     onPresenceChange: handlePresenceChange,
     counterpartType: 'APPLICANT',
+  });
+
+  // 타이핑 인디케이터
+  const { handleInput: handleTypingInput } = useTypingIndicator({
+    sessionToken: session.sessionToken,
+    senderType: 'RECRUITER',
+    onCounterpartTyping: setApplicantTyping,
   });
 
   const handleSend = (e: React.FormEvent) => {
@@ -277,6 +286,8 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
             );
           })
         )}
+        {/* 타이핑 인디케이터 */}
+        {applicantTyping && <TypingIndicator name="지원자" />}
         <div ref={bottomRef} />
       </div>
 
@@ -287,7 +298,10 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
           className="flex-1 px-4 py-2.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="메시지를 입력하세요..."
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            handleTypingInput(); // 타이핑 이벤트 발행
+          }}
           maxLength={1000}
         />
         <Button type="submit" loading={sendMutation.isPending} className="rounded-full px-5">

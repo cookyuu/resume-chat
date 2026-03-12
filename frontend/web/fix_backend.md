@@ -239,6 +239,85 @@ public class ChatWebSocketController {
 
 ---
 
+## 🟡 권장 - 타이핑 인디케이터 WebSocket 처리
+
+### 배경
+프론트엔드에서 타이핑 인디케이터 기능이 구현되었습니다. 백엔드에서 타이핑 이벤트를 받아서 상대방에게 브로드캐스트해야 합니다.
+
+### 프론트엔드 구현 내용
+- 사용자가 입력할 때 `/app/chat/{sessionToken}/typing` 으로 이벤트 전송
+- 페이로드: `{ senderType: "RECRUITER" | "APPLICANT", typing: true | false }`
+- `/topic/chat/{sessionToken}/typing` 구독하여 상대방 타이핑 상태 수신
+- 3초간 입력 없으면 자동으로 `typing: false` 전송
+
+### 백엔드 구현 필요사항
+
+#### @MessageMapping으로 타이핑 이벤트 처리
+
+```java
+@Controller
+public class ChatWebSocketController {
+
+    private final SimpMessagingTemplate messagingTemplate;
+
+    /**
+     * 타이핑 이벤트 처리
+     * - 클라이언트가 /app/chat/{sessionToken}/typing 으로 전송
+     * - 같은 sessionToken을 구독 중인 모든 클라이언트에게 브로드캐스트
+     */
+    @MessageMapping("/chat/{sessionToken}/typing")
+    public void handleTypingEvent(
+        @DestinationVariable String sessionToken,
+        @Payload TypingEventRequest request
+    ) {
+        log.debug("타이핑 이벤트 수신: sessionToken={}, senderType={}, typing={}",
+            sessionToken, request.getSenderType(), request.isTyping());
+
+        // 타이핑 이벤트를 같은 토픽 구독자에게 브로드캐스트
+        messagingTemplate.convertAndSend(
+            "/topic/chat/" + sessionToken + "/typing",
+            request
+        );
+    }
+}
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+class TypingEventRequest {
+    private String senderType;  // "RECRUITER" or "APPLICANT"
+    private boolean typing;
+}
+```
+
+### 체크리스트
+
+- [ ] TypingEventRequest DTO 생성
+  - [ ] senderType (String)
+  - [ ] typing (boolean)
+- [ ] @MessageMapping("/chat/{sessionToken}/typing") 핸들러 추가
+  - [ ] 페이로드 파싱
+  - [ ] 로깅 추가
+- [ ] 타이핑 이벤트 브로드캐스트
+  - [ ] 목적지: `/topic/chat/{sessionToken}/typing`
+  - [ ] 페이로드: TypingEventRequest
+
+### 테스트
+
+1. 두 브라우저로 테스트
+2. **브라우저 A**: 메시지 입력창에 타이핑
+3. **브라우저 B**: "상대방이 입력 중..." 메시지와 애니메이션 확인
+4. **브라우저 A**: 3초간 입력 중단
+5. **브라우저 B**: 타이핑 인디케이터 사라지는지 확인
+
+### 참고사항
+
+- 타이핑 이벤트는 DB에 저장할 필요 없음 (휘발성 데이터)
+- 브로드캐스트만 하면 됨
+- 성능 영향을 최소화하기 위해 로깅은 debug 레벨 권장
+
+---
+
 ## 🟡 권장 - WebSocket 세션 관리 개선
 
 ### 배경

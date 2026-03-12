@@ -40,26 +40,26 @@
   - [x] cleanup 함수로 연결 해제
 - [x] RecruiterChatPage에 WebSocket 통합
 
-### 2.2 입력 중 표시 (Typing Indicator)
+### 2.2 입력 중 표시 (Typing Indicator) ✅
 
-- [ ] useTypingIndicator 커스텀 훅 생성
-  - [ ] 입력 감지 함수
-  - [ ] 타이핑 이벤트 발행
-  - [ ] 3초 타임아웃 자동 해제
-- [ ] 타이핑 인디케이터 UI 컴포넌트
-  - [ ] "상대방이 입력 중..." 메시지
-  - [ ] 애니메이션 효과 (점 3개)
-- [ ] ChatPage에 통합
-- [ ] RecruiterChatPage에 통합
+- [x] useTypingIndicator 커스텀 훅 생성
+  - [x] 입력 감지 함수
+  - [x] 타이핑 이벤트 발행
+  - [x] 3초 타임아웃 자동 해제
+- [x] 타이핑 인디케이터 UI 컴포넌트
+  - [x] "상대방이 입력 중..." 메시지
+  - [x] 애니메이션 효과 (점 3개)
+- [x] ChatPage에 통합
+- [x] RecruiterChatPage에 통합
 
-### 2.3 온라인 상태 표시
+### 2.3 온라인 상태 표시 ✅
 
-- [ ] 온라인 상태 표시 UI
-  - [ ] 초록색/회색 원 아이콘
-  - [ ] "온라인" / "오프라인" 텍스트
-  - [ ] 마지막 접속 시간 표시 (formatRelative)
-- [ ] WebSocket으로 presence 구독
-- [ ] 상태 변경 시 실시간 업데이트
+- [x] 온라인 상태 표시 UI
+  - [x] 초록색/회색 원 아이콘
+  - [x] "접속중" / "미접속" 텍스트
+  - [ ] 마지막 접속 시간 표시 (formatRelative) - 선택사항
+- [x] WebSocket으로 presence 구독
+- [x] 상태 변경 시 실시간 업데이트
 
 ### 2.5 브라우저 푸시 알림
 

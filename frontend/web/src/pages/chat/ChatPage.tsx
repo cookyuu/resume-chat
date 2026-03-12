@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useSessionMessages, useSendApplicantMessage } from '@/features/chat';
-import { Button, Skeleton, EmptyState, WebSocketDebugger } from '@/shared/ui';
+import { Button, Skeleton, EmptyState, WebSocketDebugger, TypingIndicator } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/date';
 import { getWebSocketClient, type ConnectionStatus } from '@/shared/api/websocket';
 import { useChatWebSocket } from '@/shared/hooks/useChatWebSocket';
+import { useTypingIndicator } from '@/shared/hooks/useTypingIndicator';
 import { chatQueryKeys } from '@/shared/lib/queryKeys';
 
 export function ChatPage() {
@@ -16,6 +17,7 @@ export function ChatPage() {
   const [message, setMessage] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('DISCONNECTED');
   const [recruiterOnline, setRecruiterOnline] = useState(false);
+  const [recruiterTyping, setRecruiterTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,6 +43,13 @@ export function ChatPage() {
     onStatusChange: handleStatusChange,
     onPresenceChange: handlePresenceChange,
     counterpartType: 'RECRUITER',
+  });
+
+  // 타이핑 인디케이터
+  const { handleInput: handleTypingInput } = useTypingIndicator({
+    sessionToken: sessionToken!,
+    senderType: 'APPLICANT',
+    onCounterpartTyping: setRecruiterTyping,
   });
 
   const handleSend = (e: React.FormEvent) => {
@@ -152,6 +161,8 @@ export function ChatPage() {
             );
           })
         )}
+        {/* 타이핑 인디케이터 */}
+        {recruiterTyping && <TypingIndicator name="채용담당자" />}
         <div ref={bottomRef} />
       </div>
 
@@ -162,7 +173,10 @@ export function ChatPage() {
           className="flex-1 px-4 py-2.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="메시지를 입력하세요..."
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            handleTypingInput(); // 타이핑 이벤트 발행
+          }}
           maxLength={1000}
         />
         <Button type="submit" loading={sendMutation.isPending} className="rounded-full px-5">전송</Button>

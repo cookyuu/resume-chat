@@ -1,5 +1,85 @@
 ## 이슈 목록
 
+### ✅ 해결 완료 - 읽지 않은 메시지 이메일 알림 통합 (2026-03-12)
+
+**문제**: EmailService가 구현되었으나 ChatService에 통합되지 않아 실제 이메일 알림이 발송되지 않음
+
+**현상**:
+- 지원자가 메시지 전송 → 채용담당자에게 이메일 알림 없음
+- 채용담당자가 메시지 전송 → 지원자에게 이메일 알림 없음
+- 5분 지연 알림 시스템이 전혀 작동하지 않음
+
+**원인 분석**:
+
+1. **ChatService에 EmailService 미주입**
+   - EmailService가 생성되었으나 ChatService에서 사용되지 않음
+   - 메시지 전송 메서드에 알림 예약 로직 없음
+
+2. **메시지 읽음 처리 로직의 문제**
+   - `getSessionMessages()` (지원자용): 모든 메시지를 읽음 처리
+     - 문제: 채용담당자가 보낸 메시지만 읽음 처리해야 함
+     - 현재: `SenderType` 구분 없이 전체 읽음 처리
+   - `getRecruiterSessionMessages()` (채용담당자용): 읽음 처리 없음
+     - 문제: 지원자가 보낸 메시지를 읽어도 읽음 처리 안됨
+
+3. **읽지 않은 메시지 카운트 로직 오류**
+   - 현재: `countBySessionAndReadStatusFalse(session)` - 전체 읽지 않은 메시지
+   - 필요: 수신자 기준 읽지 않은 메시지 카운트
+     - 지원자: 채용담당자가 보낸 메시지 중 읽지 않은 것
+     - 채용담당자: 지원자가 보낸 메시지 중 읽지 않은 것
+
+**수정 완료** (2026-03-12):
+
+- [x] ChatMessageRepository에 발신자 타입별 읽지 않은 메시지 카운트 메서드 추가 ✅
+  - [x] `countBySessionAndReadStatusFalseAndSenderType(session, senderType)`
+  - [x] `findBySessionAndReadStatusFalseAndSenderType(session, senderType)`
+
+- [x] ChatService 수정 ✅
+  - [x] EmailService 주입
+  - [x] `sendMessage()` - 채용담당자 첫 메시지
+    - [x] 신규 세션이면 `sendNewSessionNotification()` 즉시 발송
+    - [x] 기존 세션이면 `scheduleNewMessageNotification()` 예약 (지원자에게)
+  - [x] `sendRecruiterMessage()` - 채용담당자 메시지
+    - [x] `scheduleNewMessageNotification()` 예약 (지원자에게)
+  - [x] `sendMessageByApplicant()` - 지원자 메시지
+    - [x] `scheduleNewMessageNotification()` 예약 (채용담당자에게)
+  - [x] `getSessionMessages()` - 지원자 메시지 조회
+    - [x] 채용담당자가 보낸 메시지만 읽음 처리 (SenderType.RECRUITER)
+    - [x] 읽음 처리 후 `cancelNotification()` 호출
+  - [x] `getRecruiterSessionMessages()` - 채용담당자 메시지 조회
+    - [x] 지원자가 보낸 메시지만 읽음 처리 (SenderType.APPLICANT)
+    - [x] 읽음 처리 후 `cancelNotification()` 호출
+
+**빌드 상태**: BUILD SUCCESSFUL ✅
+
+**알림 발송 흐름 (수정 후)**:
+
+```
+[지원자 → 채용담당자]
+1. 지원자가 메시지 전송 (sendMessageByApplicant)
+2. EmailService.scheduleNewMessageNotification() 호출
+   - 수신자: session.getRecruiterEmail()
+   - 발신자: applicant.getName()
+   - 5분 타이머 시작
+3. 채용담당자가 5분 이내 조회 (getRecruiterSessionMessages)
+   - 지원자 메시지 읽음 처리
+   - EmailService.cancelNotification() → 알림 취소
+4. 5분 경과 후에도 안 읽으면 → 이메일 발송
+
+[채용담당자 → 지원자]
+1. 채용담당자가 메시지 전송 (sendMessage / sendRecruiterMessage)
+2. EmailService.scheduleNewMessageNotification() 호출
+   - 수신자: resume.getApplicant().getEmail()
+   - 발신자: session.getRecruiterName()
+   - 5분 타이머 시작
+3. 지원자가 5분 이내 조회 (getSessionMessages)
+   - 채용담당자 메시지 읽음 처리
+   - EmailService.cancelNotification() → 알림 취소
+4. 5분 경과 후에도 안 읽으면 → 이메일 발송
+```
+
+---
+
 ### ✅ 해결 완료 - 메시지 전송 시 WebSocket 브로드캐스트 (2026-03-11)
 
 **문제**: REST API로 메시지 전송 시 WebSocket 브로드캐스트가 누락되어 실시간 메시지 수신 불가

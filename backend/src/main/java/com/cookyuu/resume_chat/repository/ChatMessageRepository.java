@@ -1,5 +1,6 @@
 package com.cookyuu.resume_chat.repository;
 
+import com.cookyuu.resume_chat.common.enums.SenderType;
 import com.cookyuu.resume_chat.domain.ChatMessage;
 import com.cookyuu.resume_chat.domain.ChatSession;
 import org.springframework.data.domain.Page;
@@ -12,6 +13,10 @@ import java.util.List;
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
     List<ChatMessage> findBySessionOrderByCreatedAtAsc(ChatSession session);
     long countBySessionAndReadStatusFalse(ChatSession session);
+
+    // 발신자 타입별 읽지 않은 메시지 조회 및 카운트
+    List<ChatMessage> findBySessionAndReadStatusFalseAndSenderType(ChatSession session, SenderType senderType);
+    long countBySessionAndReadStatusFalseAndSenderType(ChatSession session, SenderType senderType);
 
     // 페이지네이션 지원
     Page<ChatMessage> findBySessionOrderByCreatedAtDesc(ChatSession session, Pageable pageable);

@@ -37,11 +37,15 @@ public class ChatService {
     private final ResumeRepository resumeRepository;
     private final ApplicantRepository applicantRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final EmailService emailService;
 
     @Transactional
     public ChatDto.SendMessageResponse sendMessage(UUID resumeSlug, ChatDto.SendMessageRequest request) {
         Resume resume = resumeRepository.findByResumeSlug(resumeSlug)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESUME_NOT_FOUND));
+
+        boolean isNewSession = chatSessionRepository.findByResumeAndRecruiterEmail(resume, request.getRecruiterEmail())
+                .isEmpty();
 
         ChatSession session = chatSessionRepository.findByResumeAndRecruiterEmail(resume, request.getRecruiterEmail())
                 .orElseGet(() -> {
@@ -62,8 +66,24 @@ public class ChatService {
         // WebSocket 브로드캐스트
         broadcastMessage(session.getSessionToken(), message);
 
-        log.info("채팅 메시지 전송 완료: sessionToken={}, messageId={}, recruiterEmail={}",
-                session.getSessionToken(), message.getMessageId(), request.getRecruiterEmail());
+        // 이메일 알림
+        if (isNewSession) {
+            // 신규 세션: 즉시 발송
+            emailService.sendNewSessionNotification(session, request.getMessage());
+        } else {
+            // 기존 세션: 5분 지연 발송
+            emailService.scheduleNewMessageNotification(
+                    session.getSessionToken(),
+                    resume.getApplicant().getEmail(),
+                    resume.getApplicant().getName(),
+                    session.getRecruiterName(),
+                    SenderType.RECRUITER,
+                    request.getMessage()
+            );
+        }
+
+        log.info("채팅 메시지 전송 완료: sessionToken={}, messageId={}, recruiterEmail={}, isNewSession={}",
+                session.getSessionToken(), message.getMessageId(), request.getRecruiterEmail(), isNewSession);
 
         return ChatDto.SendMessageResponse.from(session, message);
     }
@@ -111,15 +131,23 @@ public class ChatService {
             throw new BusinessException(ErrorCode.RESUME_ACCESS_DENIED);
         }
 
-        long unreadCount = chatMessageRepository.countBySessionAndReadStatusFalse(session);
+        // 채용담당자가 보낸 읽지 않은 메시지만 카운트
+        long unreadCount = chatMessageRepository.countBySessionAndReadStatusFalseAndSenderType(
+                session, SenderType.RECRUITER);
 
         List<ChatMessage> messages = chatMessageRepository.findBySessionOrderByCreatedAtAsc(session);
 
-        messages.forEach(message -> {
-            if (!message.isReadStatus()) {
-                message.markAsRead();
-            }
-        });
+        // 채용담당자가 보낸 메시지만 읽음 처리
+        List<ChatMessage> recruiterUnreadMessages = chatMessageRepository
+                .findBySessionAndReadStatusFalseAndSenderType(session, SenderType.RECRUITER);
+
+        if (!recruiterUnreadMessages.isEmpty()) {
+            recruiterUnreadMessages.forEach(ChatMessage::markAsRead);
+            // 읽음 처리했으므로 알림 취소
+            emailService.cancelNotification(sessionToken);
+            log.info("지원자가 채용담당자 메시지 읽음 처리 및 알림 취소: sessionToken={}, 읽은 메시지 수={}",
+                    sessionToken, recruiterUnreadMessages.size());
+        }
 
         log.info("채팅 메시지 조회 완료: applicantUuid={}, sessionToken={}, messageCount={}, unreadCount={}",
                 applicantUuid, sessionToken, messages.size(), unreadCount);
@@ -151,7 +179,17 @@ public class ChatService {
         // WebSocket 브로드캐스트
         broadcastMessage(session.getSessionToken(), message);
 
-        log.info("지원자 채팅 메시지 전송 완료: sessionToken={}, messageId={}, applicantUuid={}",
+        // 이메일 알림 예약 (채용담당자에게)
+        emailService.scheduleNewMessageNotification(
+                session.getSessionToken(),
+                session.getRecruiterEmail(),
+                session.getRecruiterName(),
+                applicant.getName(),
+                SenderType.APPLICANT,
+                request.getMessage()
+        );
+
+        log.info("지원자 채팅 메시지 전송 완료 및 알림 예약: sessionToken={}, messageId={}, applicantUuid={}",
                 session.getSessionToken(), message.getMessageId(), applicantUuid);
 
         return ChatDto.ApplicantSendMessageResponse.from(session, message);
@@ -182,16 +220,31 @@ public class ChatService {
         return ChatDto.EnterSessionResponse.from(session);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ChatDto.ChatDetailResponse getRecruiterSessionMessages(String sessionToken) {
         ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        long unreadCount = chatMessageRepository.countBySessionAndReadStatusFalse(session);
+        // 지원자가 보낸 읽지 않은 메시지만 카운트
+        long unreadCount = chatMessageRepository.countBySessionAndReadStatusFalseAndSenderType(
+                session, SenderType.APPLICANT);
 
         List<ChatMessage> messages = chatMessageRepository.findBySessionOrderByCreatedAtAsc(session);
 
-        log.info("채용담당자 메시지 조회: sessionToken={}, messageCount={}", sessionToken, messages.size());
+        // 지원자가 보낸 메시지만 읽음 처리
+        List<ChatMessage> applicantUnreadMessages = chatMessageRepository
+                .findBySessionAndReadStatusFalseAndSenderType(session, SenderType.APPLICANT);
+
+        if (!applicantUnreadMessages.isEmpty()) {
+            applicantUnreadMessages.forEach(ChatMessage::markAsRead);
+            // 읽음 처리했으므로 알림 취소
+            emailService.cancelNotification(sessionToken);
+            log.info("채용담당자가 지원자 메시지 읽음 처리 및 알림 취소: sessionToken={}, 읽은 메시지 수={}",
+                    sessionToken, applicantUnreadMessages.size());
+        }
+
+        log.info("채용담당자 메시지 조회: sessionToken={}, messageCount={}, unreadCount={}",
+                sessionToken, messages.size(), unreadCount);
 
         return ChatDto.ChatDetailResponse.of(session, messages, unreadCount);
     }
@@ -212,7 +265,17 @@ public class ChatService {
         // WebSocket 브로드캐스트
         broadcastMessage(sessionToken, message);
 
-        log.info("채용담당자 메시지 전송 완료: sessionToken={}, messageId={}",
+        // 이메일 알림 예약 (지원자에게)
+        emailService.scheduleNewMessageNotification(
+                sessionToken,
+                session.getResume().getApplicant().getEmail(),
+                session.getResume().getApplicant().getName(),
+                session.getRecruiterName(),
+                SenderType.RECRUITER,
+                request.getMessage()
+        );
+
+        log.info("채용담당자 메시지 전송 완료 및 알림 예약: sessionToken={}, messageId={}",
                 sessionToken, message.getMessageId());
 
         return ChatDto.RecruiterSendMessageResponse.from(session, message);

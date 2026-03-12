@@ -369,4 +369,56 @@ public class ChatDto {
                     .build();
         }
     }
+
+    /**
+     * 입력 중 표시(Typing Indicator) 이벤트
+     *
+     * <p>사용자가 메시지를 입력 중일 때 다른 사용자에게 실시간으로 알리기 위한 DTO입니다.</p>
+     *
+     * <h3>브로드캐스트 패턴</h3>
+     * <ul>
+     *   <li>Destination: {@code /topic/session/{sessionToken}/typing}</li>
+     *   <li>클라이언트가 입력 시작 시: typing = true 전송</li>
+     *   <li>클라이언트가 입력 중단 시: typing = false 전송</li>
+     *   <li>자동 타임아웃: 3초간 새 입력 없으면 typing = false로 간주</li>
+     * </ul>
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TypingEvent {
+        /**
+         * 채팅 세션 토큰
+         */
+        @NotBlank(message = "세션 토큰은 필수입니다")
+        private String sessionToken;
+
+        /**
+         * 입력 중인 사용자의 표시 이름
+         * - 지원자: 이메일 또는 이름
+         * - 채용담당자: 채용담당자 이름 또는 회사명
+         */
+        @NotBlank(message = "사용자 이름은 필수입니다")
+        private String senderName;
+
+        /**
+         * 발신자 타입 (APPLICANT 또는 RECRUITER)
+         */
+        @NotNull(message = "발신자 타입은 필수입니다")
+        private SenderType senderType;
+
+        /**
+         * 입력 중 여부
+         * - true: 입력 중
+         * - false: 입력 중단
+         */
+        @NotNull(message = "입력 상태는 필수입니다")
+        private Boolean typing;
+
+        /**
+         * 이벤트 발생 시각
+         */
+        private LocalDateTime timestamp;
+    }
 }

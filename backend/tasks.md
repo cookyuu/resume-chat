@@ -51,26 +51,40 @@
 ### 2.2 입력 중 표시 (Typing Indicator)
 
 #### Backend
-- [ ] TypingEvent DTO 생성
-  - [ ] sessionToken 필드
-  - [ ] senderName 필드
-  - [ ] typing (boolean) 필드
-- [ ] ChatWebSocketController에 typing 핸들러 추가
-  - [ ] @MessageMapping("/chat/{sessionToken}/typing")
-  - [ ] @SendTo("/topic/session/{sessionToken}/typing")
+- [x] TypingEvent DTO 생성 ✅
+  - [x] sessionToken 필드
+  - [x] senderName 필드
+  - [x] senderType 필드
+  - [x] typing (boolean) 필드
+  - [x] timestamp 필드
+- [x] ChatWebSocketController에 typing 핸들러 추가 ✅
+  - [x] @MessageMapping("/chat/{sessionToken}/typing")
+  - [x] @SendTo("/topic/session/{sessionToken}/typing")
+  - [x] 서버 타임스탬프 자동 설정
+  - [x] Javadoc 문서화 완료
 
 ### 2.3 온라인 상태 표시
 
 #### Backend
-- [ ] PresenceService 생성
-  - [ ] ConcurrentHashMap으로 온라인 사용자 관리
-  - [ ] userConnected 메서드
-  - [ ] userDisconnected 메서드
-  - [ ] broadcastPresence 메서드
-- [ ] WebSocket 연결/해제 이벤트 리스너
-  - [ ] SessionConnectEvent 핸들러
-  - [ ] SessionDisconnectEvent 핸들러
-- [ ] PresenceEvent DTO 생성
+- [x] PresenceService 생성 ✅
+  - [x] ConcurrentHashMap으로 온라인 사용자 관리
+  - [x] userConnected 메서드
+  - [x] userDisconnected 메서드
+  - [x] broadcastPresence 메서드 (broadcastPresenceUpdate)
+  - [x] getConnectedUsers 메서드
+  - [x] isUserConnected 메서드
+- [x] WebSocket 연결/해제 이벤트 리스너 ✅
+  - [x] WebSocketEventListener 클래스 생성
+  - [x] SessionConnectEvent 핸들러
+  - [x] SessionDisconnectEvent 핸들러
+  - [x] 지원자/채용담당자 구분 처리
+- [x] PresenceEvent DTO 생성 ✅
+  - [x] PresenceUpdate 클래스 (eventType, userIdentifier, senderType, displayName, timestamp, totalConnected)
+  - [x] UserPresence 클래스 (접속 정보 관리)
+  - [x] PresenceEventType enum (CONNECTED, DISCONNECTED)
+
+#### 테스트
+- [x] PresenceServiceTest 작성 완료 (8/8 통과) ✅
 
 ### 2.4 이메일 알림
 

@@ -18,6 +18,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -109,5 +110,52 @@ public class ChatWebSocketController {
             log.error("메시지 저장 실패 - sessionToken: {}, error: {}", sessionToken, e.getMessage(), e);
             throw e;
         }
+    }
+
+    /**
+     * 입력 중 표시(Typing Indicator) 이벤트 전송
+     *
+     * <p>사용자가 메시지를 입력 중일 때 다른 사용자들에게 실시간으로 알립니다.</p>
+     *
+     * <h3>엔드포인트</h3>
+     * <ul>
+     *   <li>Client → Server: {@code /app/chat/{sessionToken}/typing}</li>
+     *   <li>Server → Clients: {@code /topic/session/{sessionToken}/typing}</li>
+     * </ul>
+     *
+     * <h3>사용 방법</h3>
+     * <ul>
+     *   <li>클라이언트가 입력 시작 시: typing = true로 전송</li>
+     *   <li>클라이언트가 입력 중단 시: typing = false로 전송</li>
+     *   <li>자동 타임아웃: 3초간 새 입력 없으면 클라이언트가 typing = false 전송 권장</li>
+     * </ul>
+     *
+     * <h3>주의사항</h3>
+     * <ul>
+     *   <li>입력 중 표시는 저장되지 않으며, 실시간으로만 브로드캐스트됩니다.</li>
+     *   <li>과도한 이벤트 발송 방지를 위해 클라이언트에서 debounce 처리 권장</li>
+     * </ul>
+     *
+     * @param sessionToken 세션 토큰
+     * @param typingEvent 입력 중 이벤트 정보
+     * @return 타임스탬프가 추가된 입력 중 이벤트
+     */
+    @MessageMapping("/chat/{sessionToken}/typing")
+    @SendTo("/topic/session/{sessionToken}/typing")
+    public ChatDto.TypingEvent sendTypingIndicator(
+            @DestinationVariable String sessionToken,
+            ChatDto.TypingEvent typingEvent
+    ) {
+        log.debug("입력 중 이벤트 수신 - sessionToken: {}, senderName: {}, senderType: {}, typing: {}",
+                sessionToken, typingEvent.getSenderName(), typingEvent.getSenderType(), typingEvent.getTyping());
+
+        // 서버 타임스탬프 설정
+        return ChatDto.TypingEvent.builder()
+                .sessionToken(sessionToken)
+                .senderName(typingEvent.getSenderName())
+                .senderType(typingEvent.getSenderType())
+                .typing(typingEvent.getTyping())
+                .timestamp(LocalDateTime.now())
+                .build();
     }
 }

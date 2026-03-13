@@ -38,4 +38,4 @@ app:
   mail:
     from: ${MAIL_USERNAME:biz.cookyuu@gmail.com}
     from-name: Resume Chat
-    notification-delay-minutes: 1  # 알림 발송 지연 시간 (분)
+    notification-delay-minutes: 5  # 알림 발송 지연 시간 (분)

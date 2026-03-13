@@ -74,6 +74,8 @@ public class ChatDto {
         private String sessionToken;
         private UUID resumeSlug;
         private String resumeTitle;
+        private String applicantEmail;
+        private String applicantName;
         private String recruiterEmail;
         private String recruiterName;
         private String recruiterCompany;
@@ -83,10 +85,19 @@ public class ChatDto {
         private LocalDateTime createdAt;
 
         public static SessionInfo from(ChatSession session, long unreadCount) {
+            String applicantEmail = session.getResume() != null && session.getResume().getApplicant() != null
+                    ? session.getResume().getApplicant().getEmail()
+                    : null;
+            String applicantName = session.getResume() != null && session.getResume().getApplicant() != null
+                    ? session.getResume().getApplicant().getName()
+                    : null;
+
             return new SessionInfo(
                     session.getSessionToken(),
                     session.getResume().getResumeSlug(),
                     session.getResume().getTitle(),
+                    applicantEmail,
+                    applicantName,
                     session.getRecruiterEmail(),
                     session.getRecruiterName(),
                     session.getRecruiterCompany(),

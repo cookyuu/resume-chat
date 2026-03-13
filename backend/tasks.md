@@ -12,7 +12,7 @@
 
 - [x] Phase 0: 프로젝트 초기 설정
 - [x] Phase 1: MVP - 핵심 기능
-- [ ] Phase 2: 실시간 통신 & 알림 (진행 중)
+- [x] Phase 2: 실시간 통신 & 알림 (2.1-2.4 완료, 2.5-2.6 선택사항)
 - [ ] Phase 4: 파일 & 검색
 - [ ] Phase 5: 보안 강화
 - [ ] Phase 6: 분석 & 통계
@@ -114,10 +114,10 @@
   - [x] 그라디언트 헤더 디자인
   - [x] 채팅 링크 버튼 (CTA)
   - [x] 메시지 미리보기 박스
-- [ ] ChatService에 이메일 알림 통합 (선택)
-  - [ ] 메시지 전송 시 scheduleNewMessageNotification() 호출
-  - [ ] 메시지 읽음 처리 시 cancelNotification() 호출
-  - [ ] 신규 세션 생성 시 sendNewSessionNotification() 호출
+- [x] ChatService에 이메일 알림 통합 ✅
+  - [x] 메시지 전송 시 scheduleNewMessageNotification() 호출 ✅
+  - [x] 메시지 읽음 처리 시 cancelNotification() 호출 ✅
+  - [x] 신규 세션 생성 시 sendNewSessionNotification() 호출 ✅
 
 #### 알림 발송 정책
 - ✅ 읽지 않은 메시지 최초 발생 → 5분 타이머 시작
@@ -142,23 +142,37 @@
 ### 2.6 알림 설정 페이지
 
 #### Database
-- [ ] rc_notification_settings 테이블 생성
-  - [ ] applicant_id (FK)
-  - [ ] email_new_message (BOOLEAN)
-  - [ ] email_new_session (BOOLEAN)
-  - [ ] push_new_message (BOOLEAN)
-  - [ ] created_at, updated_at
+- [x] rc_notification_settings 테이블 생성 ✅
+  - [x] applicant_id (FK) ✅
+  - [x] email_new_message (BOOLEAN) ✅
+  - [x] email_new_session (BOOLEAN) ✅
+  - [x] push_new_message (BOOLEAN) ✅
+  - [x] created_at, updated_at ✅
 
 #### Backend
-- [ ] NotificationSettings 엔티티 생성
-- [ ] NotificationSettingsRepository 생성
-- [ ] NotificationSettingsService 생성
-  - [ ] getSettings 메서드
-  - [ ] updateSettings 메서드
-  - [ ] 기본 설정 생성 로직
-- [ ] NotificationSettingsController 생성
-  - [ ] GET /api/applicant/notification-settings
-  - [ ] PUT /api/applicant/notification-settings
+- [x] NotificationSettings 엔티티 생성 ✅
+- [x] NotificationSettingsRepository 생성 ✅
+- [x] NotificationSettingsService 생성 ✅
+  - [x] getSettings 메서드 ✅
+  - [x] updateSettings 메서드 ✅
+  - [x] 기본 설정 생성 로직 ✅
+  - [x] isNotificationEnabled 메서드 ✅
+- [x] NotificationSettingsController 생성 ✅
+  - [x] GET /api/applicant/notification-settings ✅
+  - [x] PUT /api/applicant/notification-settings ✅
+- [x] NotificationSettingsDto 생성 ✅
+  - [x] Response DTO ✅
+  - [x] UpdateRequest DTO ✅
+
+#### 테스트
+- [x] NotificationSettingsServiceTest 작성 (7개 테스트 모두 통과) ✅
+  - [x] 알림 설정 조회 - 기존 설정
+  - [x] 알림 설정 조회 - 기본 설정 생성
+  - [x] 알림 설정 조회 - 지원자 미존재 예외
+  - [x] 알림 설정 업데이트 - 기존 설정
+  - [x] 알림 설정 업데이트 - 생성 후 업데이트
+  - [x] 알림 활성화 확인 - 설정 있음
+  - [x] 알림 활성화 확인 - 기본값
 
 ### 테스트 & 마무리
 - [ ] 전체 WebSocket 통합 테스트

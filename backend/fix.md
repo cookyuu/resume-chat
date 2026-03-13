@@ -456,14 +456,6 @@ registry.addEndpoint("/api/ws")
 - 프론트엔드 URL과 일치시켜 경로 불일치 해결
 
 **2. SecurityConfig 수정**
-```java
-// 변경 전 (line 44)
-.requestMatchers("/ws/**").permitAll()
-
-// 변경 후
-.requestMatchers("/ws/**").permitAll()           // 기존 유지 (호환성)
-.requestMatchers("/api/ws/**").permitAll()       // 추가
-```
 - `/api/ws/**` 경로를 permitAll로 설정하여 SockJS 핸드셰이크 허용
 
 #### 기타 확인 사항
@@ -491,22 +483,6 @@ location /api/ws {
 - [x] SecurityConfig.java - `/api/ws/**` permitAll 추가 ✅
 - [x] 애플리케이션 재시작 (`./gradlew bootRun`) ✅
 - [x] SockJS info 엔드포인트 테스트: `curl http://localhost:7777/api/ws/info` ✅ (200 OK)
-
-### 테스트 명령어
-```bash
-# 백엔드 서버 시작 (포트 7777)
-./gradlew bootRun
-
-# SockJS info 엔드포인트 테스트
-curl http://localhost:7777/api/ws/info
-
-# 예상 응답 (200 OK):
-# {"entropy":...,"origins":["*:*"],"cookie_needed":true,"websocket":true}
-```
-
-### 예상 결과
-- [x] SockJS 핸드셰이크 성공 (200 OK) ✅
-
 ---
 
 ## 채팅 메시지 로딩 구조 개선 (2026-03-11)
@@ -532,7 +508,7 @@ curl http://localhost:7777/api/ws/info
 **2. WebSocket 브로드캐스트 구현**
 - 경로: `/topic/session/{sessionToken}`
 - 구현 위치: ChatService.broadcastMessage() (line 274-288)
-- 메시지 전송 시 자동 브로드캐스트:
+- 메시지 전송 시 자동 브로드캐스트:∂
   - REST API 전송 (sendMessage, sendRecruiterMessage, sendMessageByApplicant) ✅
   - WebSocket 전송 (ChatWebSocketController.sendMessage) ✅
 
@@ -722,57 +698,12 @@ curl http://localhost:7777/api/ws/info
 GET /api/chat/session/{sessionToken}/messages
 ```
 
-**파라미터**:
-- `sessionToken` (Path): 채팅 세션 토큰
-
-**응답 형식**:
-```json
-{
-  "success": true,
-  "data": {
-    "session": {
-      "sessionToken": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "resumeSlug": "123e4567-e89b-12d3-a456-426614174000",
-      "resumeTitle": "백엔드 개발자 이력서",
-      "recruiterEmail": "recruiter@company.com",
-      "recruiterName": "김채용",
-      "recruiterCompany": "ABC회사",
-      "totalMessages": 5,
-      "unreadMessages": 0,
-      "lastMessageAt": "2024-02-14T10:30:00",
-      "createdAt": "2024-02-13T09:00:00"
-    },
-    "messages": [
-      {
-        "messageId": "m1n2o3p4-q5r6-7890-stuv-wx1234567890",
-        "message": "안녕하세요",
-        "senderType": "RECRUITER",
-        "readStatus": true,
-        "sentAt": "2024-02-13T09:00:00"
-      }
-    ]
-  },
-  "timestamp": "2024-02-14T10:30:00"
-}
-```
-
 **특징**:
 - 인증 불필요 (public 엔드포인트)
 - 전체 메시지 조회 (페이지네이션 없음)
 - 읽음 처리 없음 (조회만 수행)
 
 #### 2. 메시지 조회 API (지원자용)
-
-**엔드포인트**:
-```
-GET /api/applicant/chat/{sessionToken}/messages
-```
-
-**헤더**:
-- `Authorization: Bearer {JWT_TOKEN}` (필수)
-
-**파라미터**:
-- `sessionToken` (Path): 채팅 세션 토큰
 
 **응답 형식**: 채용담당자용과 동일
 
@@ -789,23 +720,9 @@ GET /api/applicant/chat/{sessionToken}/messages
 /topic/session/{sessionToken}
 ```
 
-**브로드캐스트 메시지 형식**:
-```json
-{
-  "messageId": "m2n3o4p5-q6r7-8901-stuv-wx2345678901",
-  "sessionToken": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "senderType": "APPLICANT",
-  "content": "메시지 내용",
-  "sentAt": "2024-02-14T10:30:00"
-}
-```
-
 **브로드캐스트 트리거**:
 - REST API 메시지 전송 (sendMessage, sendRecruiterMessage, sendMessageByApplicant)
 - WebSocket 메시지 전송 (ChatWebSocketController.sendMessage)
-
----
-
 ### 참고 사항
 
 **빌드 및 테스트 상태**:
@@ -828,123 +745,27 @@ GET /api/applicant/chat/{sessionToken}/messages
 ### 수정 완료 사항 (2026-03-11)
 
 #### 1. WebSocketConfig.java 수정 완료
-```java
-// 변경 전
-registry.addEndpoint("/ws")
-
-// 변경 후
-registry.addEndpoint("/api/ws")
-```
 - **파일**: `/Users/cookyuu/Documents/dev/projects/resume-chat/src/main/java/com/cookyuu/resume_chat/config/WebSocketConfig.java`
 - **변경 라인**: 48
 - **결과**: 프론트엔드 `/api/ws` 경로와 일치
 
 #### 2. SecurityConfig.java 수정 완료
-```java
-// 변경 전
-.requestMatchers("/ws/**").permitAll()  // WebSocket 엔드포인트
-
-// 변경 후
-.requestMatchers("/ws/**").permitAll()           // WebSocket 엔드포인트 (레거시)
-.requestMatchers("/api/ws/**").permitAll()       // WebSocket 엔드포인트 (신규)
-```
 - **파일**: `/Users/cookyuu/Documents/dev/projects/resume-chat/src/main/java/com/cookyuu/resume_chat/config/SecurityConfig.java`
 - **변경 라인**: 44-45
 - **결과**: `/api/ws/**` 경로가 Spring Security에서 permitAll로 설정됨
-
-#### 3. 테스트 결과
-```bash
-$ curl -v http://localhost:7777/api/ws/info
-< HTTP/1.1 200
-< Content-Type: application/json;charset=UTF-8
-< Content-Length: 78
-
-{"entropy":-844962312,"origins":["*:*"],"cookie_needed":true,"websocket":true}
 ```
 - **상태**: 200 OK ✅
 - **응답**: SockJS handshake 정보 정상 반환
 - **결론**: 403 Forbidden 에러 해결 완료
 
-#### 4. 다음 단계
-프론트엔드에서 다음을 확인하세요:
-1. WebSocket 연결이 성공적으로 수립되는지 확인
-2. 브라우저 콘솔에서 403 에러가 사라졌는지 확인
-3. STOMP CONNECT 프레임이 정상적으로 전송되는지 확인
-4. 실시간 메시지 송수신이 정상 작동하는지 확인
-
----
 
 ## 채팅 메시지 로딩 구조 개선 (Phase 1 구현 완료) - 2026-03-11
 
 ### ✅ 구현 완료 사항
 
 #### 1. Repository 레이어 (ChatMessageRepository)
-**추가된 쿼리 메서드**:
-```java
-// 페이지네이션 지원
-Page<ChatMessage> findBySessionOrderByCreatedAtDesc(ChatSession session, Pageable pageable);
-Page<ChatMessage> findBySessionOrderByCreatedAtAsc(ChatSession session, Pageable pageable);
-
-// 증분 조회 (timestamp 기반)
-List<ChatMessage> findBySessionAndCreatedAtAfterOrderByCreatedAtAsc(ChatSession session, LocalDateTime timestamp);
-
-// 증분 조회 (messageId 기반)
-List<ChatMessage> findBySessionAndIdGreaterThanOrderByCreatedAtAsc(ChatSession session, Long messageId);
-```
-
 #### 2. Service 레이어 (ChatService)
-**추가된 비즈니스 로직**:
-- `getSessionMessagesPaged(sessionToken, page, size, sortDirection)` - 채용담당자용 페이지네이션
-- `getApplicantSessionMessagesPaged(applicantUuid, sessionToken, page, size, sortDirection)` - 지원자용 페이지네이션
-- `getMessagesSinceTimestamp(sessionToken, timestamp)` - 채용담당자용 증분 조회 (timestamp)
-- `getMessagesSinceMessageId(sessionToken, lastMessageId)` - 채용담당자용 증분 조회 (ID)
-- `getApplicantMessagesSinceTimestamp(applicantUuid, sessionToken, timestamp)` - 지원자용 증분 조회 (timestamp)
-- `getApplicantMessagesSinceMessageId(applicantUuid, sessionToken, lastMessageId)` - 지원자용 증분 조회 (ID)
-
-**주요 특징**:
-- size 제한 적용 (최대 100, 기본값 20)
-- 지원자 권한 검증 (본인 세션만 조회 가능)
-- 정렬 방향 선택 가능 (asc/desc)
-
 #### 3. Controller 레이어 (ChatController)
-**추가된 API 엔드포인트**:
-
-**페이지네이션 API**:
-- `GET /api/chat/session/{sessionToken}/messages/paged` (채용담당자용)
-- `GET /api/applicant/chat/{sessionToken}/messages/paged` (지원자용, JWT 인증 필요)
-- 파라미터:
-  - `page`: 페이지 번호 (기본값: 0)
-  - `size`: 페이지 크기 (기본값: 20, 최대: 100)
-  - `sort`: 정렬 방향 (asc: 오래된 순, desc: 최신 순)
-
-**증분 조회 API**:
-- `GET /api/chat/session/{sessionToken}/messages/since` (채용담당자용)
-- `GET /api/applicant/chat/{sessionToken}/messages/since` (지원자용, JWT 인증 필요)
-- 파라미터 (둘 중 하나 필수):
-  - `timestamp`: ISO-8601 형식 (예: 2024-02-14T10:30:00)
-  - `lastMessageId`: Long 타입 내부 ID
-
-#### 4. DTO 추가 (ChatDto)
-**PagedMessagesResponse**:
-```java
-{
-  "content": [MessageInfo...],
-  "page": 0,
-  "size": 20,
-  "totalElements": 150,
-  "totalPages": 8,
-  "hasNext": true,
-  "hasPrevious": false
-}
-```
-
-**IncrementalMessagesResponse**:
-```java
-{
-  "messages": [MessageInfo...],
-  "count": 5
-}
-```
 
 #### 5. 테스트 작성
 **ChatMessageRepositoryTest** (10개 테스트, 모두 통과):
@@ -962,24 +783,6 @@ List<ChatMessage> findBySessionAndIdGreaterThanOrderByCreatedAtAsc(ChatSession s
 - 증분 조회 (timestamp/messageId)
 - 세션 미존재 에러 처리
 
-### 📊 테스트 결과
-```bash
-✅ ChatMessageRepositoryTest: 10/10 통과
-✅ ChatServiceTest: 전체 통과 (기존 + 신규 18개)
-✅ 빌드 성공: ./gradlew build -x test
-```
-
-### 📁 수정된 파일 목록
-**코드 변경**:
-- `src/main/java/com/cookyuu/resume_chat/repository/ChatMessageRepository.java` - 쿼리 메서드 추가
-- `src/main/java/com/cookyuu/resume_chat/service/ChatService.java` - 비즈니스 로직 추가
-- `src/main/java/com/cookyuu/resume_chat/controller/ChatController.java` - API 엔드포인트 추가
-- `src/main/java/com/cookyuu/resume_chat/dto/ChatDto.java` - 응답 DTO 추가
-
-**테스트 추가**:
-- `src/test/java/com/cookyuu/resume_chat/repository/ChatMessageRepositoryTest.java` (신규 생성)
-- `src/test/java/com/cookyuu/resume_chat/service/ChatServiceTest.java` (테스트 추가)
-
 ### 🎯 개선 효과
 
 **Before (기존)**:
@@ -994,28 +797,6 @@ List<ChatMessage> findBySessionAndIdGreaterThanOrderByCreatedAtAsc(ChatSession s
 - **성능 향상**: 데이터베이스 부하 감소
 - **사용자 경험 개선**: 빠른 초기 로딩, 무한 스크롤 지원 가능
 
-### 📝 API 사용 예시
-
-**페이지네이션 조회 (채용담당자)**:
-```bash
-# 첫 페이지 조회 (최신 순)
-GET /api/chat/session/abc123/messages/paged?page=0&size=20&sort=desc
-
-# 두 번째 페이지 조회
-GET /api/chat/session/abc123/messages/paged?page=1&size=20&sort=desc
-```
-
-**증분 조회 (지원자)**:
-```bash
-# timestamp 기반
-GET /api/applicant/chat/abc123/messages/since?timestamp=2024-02-14T10:30:00
-Authorization: Bearer {JWT_TOKEN}
-
-# lastMessageId 기반
-GET /api/applicant/chat/abc123/messages/since?lastMessageId=150
-Authorization: Bearer {JWT_TOKEN}
-```
-
 ### 🚧 다음 단계 (Phase 2 이후)
 
 **권장 사항**:
@@ -1026,141 +807,6 @@ Authorization: Bearer {JWT_TOKEN}
 ---
 
 ## 채팅 메시지 로딩 구조 개선 (Phase 2 구현 완료) - 2026-03-12
-
-### ✅ 구현 완료 사항
-
-#### 1. WebSocketChatMessage DTO 표준화 (ChatDto.java)
-**필드 구성**:
-```java
-public static class WebSocketChatMessage {
-    private UUID messageId;           // 메시지 고유 식별자
-    private String sessionToken;      // 채팅 세션 토큰
-    private SenderType senderType;    // 발신자 타입 (APPLICANT/RECRUITER)
-    private MessageType messageType;  // 메시지 타입 (TEXT/IMAGE/FILE/SYSTEM)
-    private String content;           // 메시지 내용
-    private LocalDateTime sentAt;     // 전송 시각
-}
-```
-
-**특징**:
-- Javadoc 문서화 완료 (각 필드의 의미 명확화)
-- @Valid 어노테이션 추가 (validation 지원)
-  - `@NotBlank` for sessionToken, content
-  - `@NotNull` for senderType, messageType
-  - `@Size(min=1, max=1000)` for content
-- 정적 팩토리 메서드 `from(sessionToken, ChatMessage)` 제공
-
-#### 2. 브로드캐스트 Destination 문서화
-**패턴**: `/topic/session/{sessionToken}`
-**예시**: `/topic/session/abc123-def456`
-
-**ChatService.broadcastMessage() 문서화**:
-```java
-/**
- * WebSocket으로 메시지 브로드캐스트
- *
- * <h3>브로드캐스트 Destination 패턴</h3>
- * <ul>
- *   <li>Pattern: {@code /topic/session/{sessionToken}}</li>
- *   <li>Example: {@code /topic/session/abc123-def456}</li>
- * </ul>
- *
- * <h3>메시지 형식</h3>
- * <ul>
- *   <li>DTO: {@link ChatDto.WebSocketChatMessage}</li>
- *   <li>필드: messageId, sessionToken, senderType, messageType, content, sentAt</li>
- * </ul>
- */
-private void broadcastMessage(String sessionToken, ChatMessage message) { ... }
-```
-
-#### 3. MessageType Enum 생성 (MessageType.java)
-```java
-public enum MessageType {
-    TEXT,    // 텍스트 메시지 (현재 지원)
-    IMAGE,   // 이미지 파일 (향후 확장 예정)
-    FILE,    // 파일 첨부 (향후 확장 예정)
-    SYSTEM   // 시스템 메시지 (향후 확장 예정)
-}
-```
-
-**Javadoc 문서화**:
-- 각 타입별 용도 설명
-- 향후 확장 계획 명시
-
-#### 4. ChatMessage 엔티티에 messageType 필드 추가
-```java
-@Entity
-@Table(name = "rc_chat_message")
-public class ChatMessage extends BaseTimeEntity {
-    // ... 기존 필드들
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private MessageType messageType;  // 추가됨
-
-    // 팩토리 메서드 - 기본값 TEXT
-    public static ChatMessage createMessage(ChatSession session, SenderType senderType, String content) {
-        return ChatMessage.builder()
-                .messageType(MessageType.TEXT)  // 기본값
-                // ...
-                .build();
-    }
-
-    // 팩토리 메서드 - messageType 지정 가능
-    public static ChatMessage createMessage(ChatSession session, SenderType senderType, MessageType messageType, String content) {
-        return ChatMessage.builder()
-                .messageType(messageType)
-                // ...
-                .build();
-    }
-}
-```
-
-**데이터베이스 변경**:
-- 컬럼 추가: `message_type VARCHAR NOT NULL`
-- 기본값: `'TEXT'`
-- JPA ddl-auto=update로 자동 생성됨
-
-#### 5. ErrorCode 추가
-```java
-public enum ErrorCode {
-    // ...
-    INVALID_MESSAGE_TYPE("S006", "지원하지 않는 메시지 타입입니다", HttpStatus.BAD_REQUEST),
-    // ...
-    FILE_SIZE_EXCEEDED("F004", "파일 크기가 제한을 초과했습니다", HttpStatus.BAD_REQUEST),
-    // ...
-}
-```
-
-#### 6. 테스트 수정
-**WebSocketIntegrationTest 수정**:
-- `ChatWebSocketController.WebSocketChatMessage` → `ChatDto.WebSocketChatMessage` 변경
-- 모든 WebSocketChatMessage 생성 시 `messageType(MessageType.TEXT)` 추가
-- import 구문 수정 (`ChatDto`, `MessageType` 추가)
-
-### 📊 테스트 결과
-```bash
-✅ ChatServiceTest: 전체 통과
-✅ ChatMessageRepositoryTest: 10/10 통과
-✅ 빌드 성공: ./gradlew test
-```
-
-### 📁 수정된 파일 목록
-
-**코드 변경**:
-- `src/main/java/com/cookyuu/resume_chat/common/enums/MessageType.java` (신규 생성)
-- `src/main/java/com/cookyuu/resume_chat/domain/ChatMessage.java` (messageType 필드 추가)
-- `src/main/java/com/cookyuu/resume_chat/dto/ChatDto.java` (WebSocketChatMessage 표준화)
-- `src/main/java/com/cookyuu/resume_chat/service/ChatService.java` (문서화 추가)
-- `src/main/java/com/cookyuu/resume_chat/common/response/ErrorCode.java` (에러 코드 추가)
-
-**테스트 수정**:
-- `src/test/java/com/cookyuu/resume_chat/integration/WebSocketIntegrationTest.java` (DTO 경로 변경)
-
-**문서 업데이트**:
-- `/Users/cookyuu/Documents/dev/projects/resume-chat/fix.md` (Phase 2 체크리스트 완료)
-
 ### 🎯 개선 효과
 
 **메시지 형식 표준화**:
@@ -1184,17 +830,6 @@ public enum ErrorCode {
 /topic/session/{sessionToken}
 ```
 
-**브로드캐스트 메시지 JSON 형식**:
-```json
-{
-  "messageId": "m2n3o4p5-q6r7-8901-stuv-wx2345678901",
-  "sessionToken": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "senderType": "APPLICANT",
-  "messageType": "TEXT",
-  "content": "메시지 내용",
-  "sentAt": "2024-02-14T10:30:00"
-}
-```
 
 **브로드캐스트 트리거**:
 1. REST API 메시지 전송 (sendMessage, sendRecruiterMessage, sendMessageByApplicant)
@@ -1223,14 +858,6 @@ public enum ErrorCode {
 
 #### 1. 데이터베이스 인덱스 추가 (ChatMessage.java)
 
-**추가된 복합 인덱스**:
-```java
-@Table(name = "rc_chat_message", indexes = {
-    @Index(name = "idx_chat_message_session_created", columnList = "session_id, created_at"),
-    @Index(name = "idx_chat_message_session_read_status", columnList = "session_id, read_status")
-})
-```
-
 **인덱스 1: idx_chat_message_session_created**
 - 컬럼: session_id, created_at
 - 용도: 메시지 조회 성능 최적화
@@ -1245,42 +872,17 @@ public enum ErrorCode {
 - 대상 쿼리:
   - `countBySessionAndReadStatusFalse()`
 
-**생성 확인**:
-```sql
-SHOW INDEX FROM rc_chat_message;
-
 -- 결과:
 -- idx_chat_message_session_created (session_id, created_at) ✅
 -- idx_chat_message_session_read_status (session_id, read_status) ✅
 ```
 
 #### 2. N+1 문제 검증
-
-**검증 대상 메서드**:
-- `ChatService.getSessionMessages()`
-- `ChatService.getSessionMessagesPaged()`
-- `ChatService.getMessagesSinceTimestamp()`
-- `ChatService.getMessagesSinceMessageId()`
-
 **검증 결과**:
 - ✅ **N+1 문제 없음** - 모든 메서드가 단일 쿼리로 동작
 - ChatMessage는 @ManyToOne으로 ChatSession을 참조하지만, session은 파라미터로 전달받아 사용
 - MessageInfo DTO 변환 시 `message.getSession()` 호출 없음
 - 불필요한 연관관계 fetch 없음
-
-**DTO 변환 로직 확인**:
-```java
-public static MessageInfo from(ChatMessage message) {
-    return new MessageInfo(
-        message.getMessageId(),      // ✅ 직접 필드 접근
-        message.getContent(),         // ✅ 직접 필드 접근
-        message.getSenderType(),      // ✅ 직접 필드 접근
-        message.isReadStatus(),       // ✅ 직접 필드 접근
-        message.getCreatedAt()        // ✅ 직접 필드 접근
-    );
-    // message.getSession() 호출 없음 → N+1 문제 없음
-}
-```
 
 **결론**:
 - @EntityGraph나 fetch join 불필요
@@ -1313,23 +915,6 @@ public static MessageInfo from(ChatMessage message) {
 - **증분 조회**: created_at 인덱스 활용으로 효율적인 범위 검색
 - 메시지 수가 증가해도 일정한 성능 유지
 
-### 📁 수정된 파일
-
-**코드 변경**:
-- `src/main/java/com/cookyuu/resume_chat/domain/ChatMessage.java` - @Index 어노테이션 추가
-
-**문서 업데이트**:
-- `/Users/cookyuu/Documents/dev/projects/resume-chat/fix.md` - Phase 3 체크리스트 완료
-
-### ✅ 테스트 결과
-```bash
-✅ ChatServiceTest: 전체 통과
-✅ ChatMessageRepositoryTest: 10/10 통과
-✅ 빌드 성공: ./gradlew test
-✅ 애플리케이션 정상 시작
-✅ 인덱스 생성 확인 (Hibernate DDL 로그)
-```
-
 ### 🎯 최적화 완료 요약
 
 **Phase 3에서 달성한 목표**:
@@ -1352,5 +937,119 @@ public static MessageInfo from(ChatMessage message) {
 **선택 사항 (Phase 4)**:
 - 메시지 중복 방지 로직 (클라이언트 가이드)
 - 메시지 순서 보장 (sequenceNumber 필드)
+
+
+## 🔴 긴급 - ChatSession에 지원자 정보 추가
+
+### 문제 상황
+- 채용담당자 채팅 화면에서 지원자의 이름과 이메일이 표시되지 않음
+- 현재 ChatSession 응답에 이력서 제목(resumeTitle)만 포함되어 있음
+- 채용담당자가 누구와 대화하는지 명확히 알 수 없음
+
+### 필요한 수정
+
+#### ChatSession DTO에 지원자 정보 필드 추가
+
+**변경 전**:
+```java
+public class ChatSessionDto {
+    private String sessionToken;
+    private String resumeSlug;
+    private String resumeTitle;
+    private String recruiterEmail;
+    private String recruiterName;
+    private String recruiterCompany;
+    private Integer totalMessages;
+    private Integer unreadMessages;
+    private LocalDateTime lastMessageAt;
+    private LocalDateTime createdAt;
+}
+```
+
+**변경 후**:
+```java
+public class ChatSessionDto {
+    private String sessionToken;
+    private String resumeSlug;
+    private String resumeTitle;
+    private String recruiterEmail;
+    private String recruiterName;
+    private String recruiterCompany;
+
+    // ✅ 추가: 지원자 정보
+    private String applicantEmail;  // 지원자 이메일
+    private String applicantName;   // 지원자 이름
+
+    private Integer totalMessages;
+    private Integer unreadMessages;
+    private LocalDateTime lastMessageAt;
+    private LocalDateTime createdAt;
+}
+```
+
+#### 영향받는 API 엔드포인트
+- `GET /chat/session/{sessionToken}/messages` - 채용담당자용 메시지 조회
+- `GET /applicant/chat/{sessionToken}/messages` - 지원자용 메시지 조회
+
+#### 구현 예시
+```java
+@Service
+public class ChatService {
+
+    public SessionMessagesDto getRecruiterMessages(String sessionToken) {
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+            .orElseThrow(() -> new NotFoundException("Session not found"));
+
+        // 지원자 정보 조회
+        Resume resume = resumeRepository.findByResumeSlug(session.getResumeSlug())
+            .orElseThrow(() -> new NotFoundException("Resume not found"));
+
+        User applicant = resume.getUser(); // 또는 session.getApplicant()
+
+        ChatSessionDto sessionDto = ChatSessionDto.builder()
+            .sessionToken(session.getSessionToken())
+            .resumeSlug(session.getResumeSlug())
+            .resumeTitle(resume.getTitle())
+            .recruiterEmail(session.getRecruiterEmail())
+            .recruiterName(session.getRecruiterName())
+            .recruiterCompany(session.getRecruiterCompany())
+            // ✅ 지원자 정보 추가
+            .applicantEmail(applicant.getEmail())
+            .applicantName(applicant.getName())
+            .totalMessages(session.getTotalMessages())
+            .unreadMessages(session.getUnreadMessages())
+            .lastMessageAt(session.getLastMessageAt())
+            .createdAt(session.getCreatedAt())
+            .build();
+
+        // ... 메시지 조회 및 반환
+    }
+}
+```
+
+### 우선순위
+🔴 **높음** - 사용자 경험에 직접적인 영향을 주는 기능
+
+### ✅ 구현 완료 (2026-03-13)
+
+**구현 내역**:
+- SessionInfo DTO에 applicantEmail, applicantName 필드 추가 완료
+- SessionInfo.from() 팩토리 메서드에서 session.getResume().getApplicant()로 지원자 정보 자동 조회
+- 기존 ChatService 메서드들이 SessionInfo.from()을 사용하므로 자동으로 지원자 정보 포함됨
+- 빌드 성공 확인 (./gradlew build -x test)
+
+**영향받는 API**:
+- `GET /chat/session/{sessionToken}/messages` - 채용담당자용 (지원자 정보 포함 ✅)
+- `GET /applicant/chat/{sessionToken}/messages` - 지원자용 (지원자 정보 포함 ✅)
+- `GET /applicant/resume/{resumeSlug}/chats` - 이력서별 세션 목록 (지원자 정보 포함 ✅)
+
+### 체크리스트
+- [x] ChatSessionDto에 applicantEmail, applicantName 필드 추가 ✅
+- [x] Service 레이어에서 지원자 정보 조회 로직 추가 ✅ (SessionInfo.from()에서 자동 처리)
+- [x] GET /chat/session/{sessionToken}/messages API 응답에 지원자 정보 포함 ✅
+- [x] GET /applicant/chat/{sessionToken}/messages API 응답 확인 (기존 동작 유지) ✅
+- [x] 빌드 성공 확인 ✅
+
+---
 
 ---

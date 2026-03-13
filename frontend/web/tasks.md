@@ -76,15 +76,15 @@
   - [ ] 첫 로그인 시 팝업
   - [ ] 설정에서 재요청 가능
 
-### 2.6 알림 설정 페이지
+### 2.6 알림 설정 페이지 ✅
 
-- [ ] NotificationSettingsPage 생성
-  - [ ] 이메일 알림 on/off 토글
-  - [ ] 푸시 알림 on/off 토글
-  - [ ] 저장 버튼
-- [ ] useNotificationSettings 훅 생성
-- [ ] 라우팅 설정 (/settings/notifications)
-- [ ] 네비게이션 메뉴에 링크 추가
+- [x] NotificationSettingsPage 생성
+  - [x] 이메일 알림 on/off 토글
+  - [x] 푸시 알림 on/off 토글 (준비 중 상태로 disabled)
+  - [x] 저장 버튼
+- [x] useNotificationSettings 훅 생성
+- [x] 라우팅 설정 (/settings/notifications)
+- [x] 네비게이션 메뉴에 링크 추가 (BellIcon)
 
 ---
 

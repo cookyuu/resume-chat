@@ -1,5 +1,5 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
+import { SunIcon, MoonIcon, BellIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/shared/store/auth';
 import { useDarkMode } from '@/shared/hooks/useDarkMode';
 
@@ -22,6 +22,14 @@ export function AppLayout() {
         </Link>
         {user && (
           <div className="flex items-center gap-4">
+            {/* 알림 설정 버튼 */}
+            <Link
+              to="/settings/notifications"
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Notification settings"
+            >
+              <BellIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            </Link>
             {/* 다크모드 토글 버튼 */}
             <button
               onClick={toggleDarkMode}

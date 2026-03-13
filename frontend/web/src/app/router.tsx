@@ -8,6 +8,7 @@ import { ResumesPage } from '@/pages/resume/ResumesPage';
 import { ResumeChatsPage } from '@/pages/chat/ResumeChatsPage';
 import { ChatPage } from '@/pages/chat/ChatPage';
 import { RecruiterChatPage } from '@/pages/chat/RecruiterChatPage';
+import { NotificationSettingsPage } from '@/pages/settings/NotificationSettingsPage';
 
 export const router = createBrowserRouter([
   // ── Public ──
@@ -45,6 +46,10 @@ export const router = createBrowserRouter([
           {
             path: '/chat/:sessionToken/messages',
             element: <ChatPage />,
+          },
+          {
+            path: '/settings/notifications',
+            element: <NotificationSettingsPage />,
           },
         ],
       },

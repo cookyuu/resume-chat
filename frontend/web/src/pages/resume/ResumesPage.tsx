@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useMyResumes, useUploadResume, useDeleteResume } from '@/features/resume';
 import { Button, Input, Skeleton, EmptyState } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/date';
+import { apiClient } from '@/shared/api';
 
 export function ResumesPage() {
   const { data: resumes, isLoading, isError } = useMyResumes();
@@ -40,6 +41,30 @@ export function ResumesPage() {
   const handleCopyLink = (chatLink: string) => {
     navigator.clipboard.writeText(chatLink);
     toast.success('채팅 링크가 복사되었습니다.');
+  };
+
+  const handlePreviewResume = async (resumeSlug: string) => {
+    try {
+      // JWT 토큰을 포함하여 API 호출
+      const response = await apiClient.get(`/applicant/resume/${resumeSlug}/file`, {
+        responseType: 'blob', // Blob으로 응답 받기
+      });
+
+      // Blob URL 생성
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      // 새 창에서 열기
+      window.open(blobUrl, '_blank');
+
+      // 메모리 정리 (5초 후)
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 5000);
+    } catch (error) {
+      console.error('이력서 미리보기 실패:', error);
+      toast.error('이력서를 불러올 수 없습니다.');
+    }
   };
 
   // ── Loading ──
@@ -143,13 +168,7 @@ export function ResumesPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={() => {
-                          if (resume.fileUrl) {
-                            window.open(resume.fileUrl, '_blank');
-                          } else {
-                            toast.error('파일 URL을 찾을 수 없습니다.');
-                          }
-                        }}
+                        onClick={() => handlePreviewResume(resume.resumeSlug)}
                         className="px-2.5 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900 rounded hover:bg-purple-100 dark:hover:bg-purple-800"
                       >
                         보기

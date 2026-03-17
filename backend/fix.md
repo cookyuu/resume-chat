@@ -1054,9 +1054,9 @@ public class ChatService {
 
 ---# 백엔드 수정 체크리스트 - 첨부파일 표시 기능
 
-## 🔴 문제 상황
-- [ ] 프론트엔드에서 파일 업로드 및 메시지 전송은 정상 작동
-- [ ] 하지만 메시지 조회 API 응답에 `attachment` 필드가 누락되어 첨부파일이 UI에 표시되지 않음
+## ✅ 해결 완료 - 첨부파일 표시 기능 (2026-03-17)
+- [x] 프론트엔드에서 파일 업로드 및 메시지 전송은 정상 작동
+- [x] 메시지 조회 API 응답에 `attachment` 필드 추가 완료
 
 ---
 
@@ -1329,3 +1329,209 @@ WHERE m.message_id = 'xxx';
 - ✅ 이미지 인라인 미리보기
 
 **백엔드에서 위 체크리스트를 완료하면 바로 작동합니다!**
+
+
+****# 백엔드 수정 체크리스트
+
+## ✅ 해결 완료 - 이력서 조회 API에 fileUrl 필드 추가 (2026-03-17)
+
+### 해결 내용
+- [x] `ResumeDto.ResumeInfo`에 `fileUrl` 필드 추가 완료
+- [x] fileUrl은 다운로드 엔드포인트를 가리킴: `/api/applicant/resumes/{resumeSlug}/download`
+- [x] Resume Entity에 기존 `filePath` 필드 확인 완료
+- [x] 빌드 성공 확인
+
+### 현재 응답 구조
+```json
+{
+    "success": true,
+    "data": [
+        {
+            "resumeSlug": "45f83f1b-689d-4bf9-87a2-16724e98f01a",
+            "title": "BE",
+            "description": "BE",
+            "originalFileName": "백엔드개발자_임해규_이력서.pdf",
+            "chatLink": "http://localhost:31000/chat/45f83f1b-689d-4bf9-87a2-16724e98f01a",
+            "viewCnt": 0,
+            "createdAt": "2026-03-10T23:01:50.765044"
+        }
+    ],
+    "timestamp": "2026-03-17T13:12:58.748162"
+}
+```
+
+### 필요한 응답 구조
+```json
+{
+    "success": true,
+    "data": [
+        {
+            "resumeSlug": "45f83f1b-689d-4bf9-87a2-16724e98f01a",
+            "title": "BE",
+            "description": "BE",
+            "originalFileName": "백엔드개발자_임해규_이력서.pdf",
+            "fileUrl": "/uploads/resumes/45f83f1b-689d-4bf9-87a2-16724e98f01a.pdf",  // ✅ 추가 필요
+            "chatLink": "http://localhost:31000/chat/45f83f1b-689d-4bf9-87a2-16724e98f01a",
+            "viewCnt": 0,
+            "createdAt": "2026-03-10T23:01:50.765044"
+        }
+    ],
+    "timestamp": "2026-03-17T13:12:58.748162"
+}
+```
+
+---
+
+## ✅ 수정 체크리스트
+
+### 1️⃣ Resume Entity 확인
+- [x] `Resume` Entity에 `filePath` 필드 확인 완료 (line 36)
+- [x] 데이터베이스 스키마 확인 완료
+
+```java
+@Entity
+public class Resume {
+    @Id
+    private String resumeSlug;
+    private String title;
+    private String description;
+    private String originalFileName;
+    private String fileUrl;  // ✅ 이 필드 확인
+    private Integer viewCnt;
+    private LocalDateTime createdAt;
+
+    // getters, setters...
+}
+```
+
+### 2️⃣ Resume DTO 수정
+- [x] `ResumeDto.ResumeInfo`에 `fileUrl` 필드 추가 완료
+- [x] `from()` 팩토리 메서드에 fileUrl 생성 로직 추가 완료
+
+```java
+public class ResumeDTO {
+    private String resumeSlug;
+    private String title;
+    private String description;
+    private String originalFileName;
+    private String fileUrl;  // ✅ 추가
+    private String chatLink;
+    private Integer viewCnt;
+    private String createdAt;
+
+    public static ResumeDTO from(Resume resume) {
+        ResumeDTO dto = new ResumeDTO();
+        dto.setResumeSlug(resume.getResumeSlug());
+        dto.setTitle(resume.getTitle());
+        dto.setDescription(resume.getDescription());
+        dto.setOriginalFileName(resume.getOriginalFileName());
+        dto.setFileUrl(resume.getFileUrl());  // ✅ 추가
+        dto.setChatLink(resume.getChatLink());
+        dto.setViewCnt(resume.getViewCnt());
+        dto.setCreatedAt(resume.getCreatedAt().toString());
+        return dto;
+    }
+}
+```
+
+### 3️⃣ 이력서 업로드 시 fileUrl 저장
+- [ ] 파일 업로드 시 저장 경로를 DB에 저장하는지 확인
+- [ ] 저장되지 않는다면 로직 추가
+
+```java
+@PostMapping("/api/applicant/resumes")
+public ResponseEntity<?> uploadResume(
+    @RequestParam String title,
+    @RequestParam String description,
+    @RequestParam MultipartFile file
+) {
+    // 파일 저장
+    String savedFileName = fileStorageService.save(file);
+
+    // Resume 엔티티 생성
+    Resume resume = new Resume();
+    resume.setResumeSlug(UUID.randomUUID().toString());
+    resume.setTitle(title);
+    resume.setDescription(description);
+    resume.setOriginalFileName(file.getOriginalFilename());
+
+    // ✅ fileUrl 저장
+    resume.setFileUrl("/uploads/resumes/" + savedFileName);
+
+    resume.setViewCnt(0);
+    resume.setCreatedAt(LocalDateTime.now());
+
+    resumeRepository.save(resume);
+
+    return ResponseEntity.ok(ResumeDTO.from(resume));
+}
+```
+
+### 4️⃣ 이력서 목록 조회 API 확인
+- [x] `GET /api/applicant/resumes` 응답에 `fileUrl` 포함 확인 완료
+- [x] DTO의 `from()` 메서드가 올바르게 호출됨 확인 완료
+- [x] ResumeController의 `getMyResumes()` 메서드가 `ResumeInfo` 사용 확인 완료
+
+---
+
+## 📋 fileUrl 형식 가이드
+
+### 상대 경로 (권장)
+```
+/uploads/resumes/{resumeSlug}.pdf
+```
+- 프론트엔드에서 자동으로 절대 경로로 변환
+- 서버 도메인 변경에 유연하게 대응
+
+### 절대 경로
+```
+http://localhost:8080/uploads/resumes/{resumeSlug}.pdf
+```
+- 바로 사용 가능
+- 하지만 도메인 하드코딩 필요
+
+**권장**: 상대 경로 사용
+
+---
+
+## 🧪 테스트 체크리스트
+
+### 1. 이력서 업로드 테스트
+- [ ] 새 이력서 업로드
+- [ ] DB에 `fileUrl` 저장 확인
+```sql
+SELECT resume_slug, title, file_url FROM resume ORDER BY created_at DESC LIMIT 1;
+```
+
+### 2. 이력서 목록 조회 테스트
+- [ ] API 호출
+```bash
+curl -X GET "http://localhost:8080/api/applicant/resumes" \
+  -H "Authorization: Bearer {token}"
+```
+- [ ] 응답에 `fileUrl` 포함 확인
+```json
+{
+  "data": [
+    {
+      "resumeSlug": "...",
+      "fileUrl": "/uploads/resumes/xxx.pdf"  // ✅ 확인
+    }
+  ]
+}
+```
+
+### 3. 파일 접근 테스트
+- [ ] 브라우저에서 파일 URL 직접 접근
+```
+http://localhost:8080/uploads/resumes/xxx.pdf
+```
+- [ ] PDF 파일이 정상적으로 열리는지 확인
+- [ ] CORS 설정 확인 (프론트엔드 도메인 허용)
+
+---
+
+## 🔥 우선순위
+**HIGH** - 이력서 미리보기 기능이 전혀 작동하지 않습니다.
+
+---

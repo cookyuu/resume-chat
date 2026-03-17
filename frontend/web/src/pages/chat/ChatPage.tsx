@@ -1,12 +1,18 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useSessionMessages, useSendApplicantMessage } from '@/features/chat';
-import { Button, Skeleton, EmptyState, TypingIndicator } from '@/shared/ui';
+import { Button, Skeleton, EmptyState, TypingIndicator, AttachmentDisplay, ExportModal } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/date';
 import { getWebSocketClient, type ConnectionStatus } from '@/shared/api/websocket';
 import { useChatWebSocket } from '@/shared/hooks/useChatWebSocket';
 import { useTypingIndicator } from '@/shared/hooks/useTypingIndicator';
+import { useUploadAttachment } from '@/shared/hooks/useUploadAttachment';
+import { useSearchMessages } from '@/shared/hooks/useSearchMessages';
+import { useExportChat } from '@/shared/hooks/useExportChat';
 import { chatQueryKeys } from '@/shared/lib/queryKeys';
+import { highlightKeyword } from '@/shared/lib/highlight';
+import { PaperClipIcon, MagnifyingGlassIcon, XMarkIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
 export function ChatPage() {
   const { sessionToken } = useParams<{ sessionToken: string }>();
@@ -18,7 +24,10 @@ export function ChatPage() {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('DISCONNECTED');
   const [recruiterOnline, setRecruiterOnline] = useState(false);
   const [recruiterTyping, setRecruiterTyping] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -52,6 +61,78 @@ export function ChatPage() {
     onCounterpartTyping: setRecruiterTyping,
   });
 
+  // 파일 업로드
+  const { mutate: uploadFile, isPending: isUploading, uploadProgress } = useUploadAttachment(queryKey);
+
+  // 세션 정보
+  const session = data?.session;
+
+  // 메시지 검색
+  const { searchKeyword, setSearchKeyword, filteredMessages, searchResultCount, isSearching } = useSearchMessages(data?.messages);
+
+  const displayMessages = isSearching ? filteredMessages : data?.messages || [];
+
+  // 채팅 내보내기
+  const { exportChat, isExporting } = useExportChat(data?.messages, {
+    recruiterName: session?.recruiterName,
+    recruiterCompany: session?.recruiterCompany,
+  });
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 파일 타입 체크
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+      'application/msword', // doc
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+      'application/vnd.ms-excel', // xls
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'application/zip',
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('지원하지 않는 파일 형식입니다.');
+      return;
+    }
+
+    // 파일 크기 체크
+    const isImage = file.type.startsWith('image/');
+    const isZip = file.type === 'application/zip';
+    const maxSize = isZip ? 20 * 1024 * 1024 : isImage ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      const maxSizeMB = maxSize / (1024 * 1024);
+      toast.error(`파일 크기는 ${maxSizeMB}MB를 초과할 수 없습니다.`);
+      return;
+    }
+
+    // 파일 업로드 성공 시 자동으로 메시지 전송
+    uploadFile(
+      { sessionToken: sessionToken!, file },
+      {
+        onSuccess: (attachment) => {
+          console.log('파일 업로드 성공:', attachment);
+          // 첨부파일ID를 포함한 메시지 자동 전송
+          sendMutation.mutate({
+            message: '', // 파일만 전송
+            attachmentId: attachment.attachmentId,
+          });
+        },
+      }
+    );
+
+    // input 초기화
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
@@ -82,8 +163,6 @@ export function ChatPage() {
     );
   }
 
-  const session = data?.session;
-
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] max-w-4xl mx-auto">
       {/* Header */}
@@ -102,37 +181,88 @@ export function ChatPage() {
             </p>
           </div>
         )}
-        {/* 접속 상태 표시 */}
-        <div className="flex items-center gap-1.5 text-xs shrink-0">
-          <div
-            className={`w-2 h-2 rounded-full ${
-              connectionStatus === 'CONNECTED' && recruiterOnline
-                ? 'bg-green-500'
-                : connectionStatus === 'CONNECTING' || connectionStatus === 'RECONNECTING'
-                ? 'bg-yellow-500 animate-pulse'
-                : 'bg-gray-400'
-            }`}
-          />
-          <span className="text-gray-600 dark:text-gray-400">
-            {connectionStatus === 'CONNECTING'
-              ? '연결 중...'
-              : connectionStatus === 'RECONNECTING'
-              ? '재연결 중...'
-              : connectionStatus === 'CONNECTED'
-              ? recruiterOnline
-                ? '접속중'
-                : '미접속'
-              : '오프라인'}
-          </span>
+        {/* 검색 & 내보내기 & 접속 상태 */}
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => {
+              setShowSearch(!showSearch);
+              if (showSearch) {
+                setSearchKeyword('');
+              }
+            }}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+            title="검색"
+          >
+            <MagnifyingGlassIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+            title="내보내기"
+          >
+            <ArrowDownTrayIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+          <div className="flex items-center gap-1.5 text-xs">
+            <div
+              className={`w-2 h-2 rounded-full ${
+                connectionStatus === 'CONNECTED' && recruiterOnline
+                  ? 'bg-green-500'
+                  : connectionStatus === 'CONNECTING' || connectionStatus === 'RECONNECTING'
+                  ? 'bg-yellow-500 animate-pulse'
+                  : 'bg-gray-400'
+              }`}
+            />
+            <span className="text-gray-600 dark:text-gray-400">
+              {connectionStatus === 'CONNECTING'
+                ? '연결 중...'
+                : connectionStatus === 'RECONNECTING'
+                ? '재연결 중...'
+                : connectionStatus === 'CONNECTED'
+                ? recruiterOnline
+                  ? '접속중'
+                  : '미접속'
+                : '오프라인'}
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* Search Bar */}
+      {showSearch && (
+        <div className="px-4 py-3 bg-white dark:bg-gray-800 border-b dark:border-gray-700 transition-colors">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              className="flex-1 px-3 py-2 border dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="메시지 검색..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              autoFocus
+            />
+            {isSearching && (
+              <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                {searchResultCount}개 발견
+              </span>
+            )}
+            <button
+              onClick={() => {
+                setShowSearch(false);
+                setSearchKeyword('');
+              }}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+            >
+              <XMarkIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-900 transition-colors">
-        {!data?.messages || data.messages.length === 0 ? (
-          <EmptyState message="아직 메시지가 없습니다" />
+        {!displayMessages || displayMessages.length === 0 ? (
+          <EmptyState message={isSearching ? "검색 결과가 없습니다" : "아직 메시지가 없습니다"} />
         ) : (
-          data.messages.map((msg) => {
+          displayMessages.map((msg) => {
             const isApplicant = msg.senderType === 'APPLICANT';
             return (
               <div
@@ -146,7 +276,25 @@ export function ChatPage() {
                       : 'bg-white dark:bg-gray-800 border dark:border-gray-700 dark:text-white rounded-bl-md'
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                  {msg.message && (
+                    <p
+                      className="text-sm whitespace-pre-wrap"
+                      dangerouslySetInnerHTML={{
+                        __html: isSearching ? highlightKeyword(msg.message, searchKeyword) : msg.message,
+                      }}
+                    />
+                  )}
+                  {msg.attachment && (
+                    <div className={msg.message ? 'mt-2' : ''}>
+                      <AttachmentDisplay
+                        attachmentId={msg.attachment.attachmentId}
+                        fileName={msg.attachment.fileName}
+                        fileSize={msg.attachment.fileSize}
+                        fileType={msg.attachment.fileType}
+                        fileUrl={msg.attachment.fileUrl}
+                      />
+                    </div>
+                  )}
                   <p
                     className={`text-xs mt-1 ${
                       isApplicant ? 'text-blue-200' : 'text-gray-400'
@@ -165,19 +313,50 @@ export function ChatPage() {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSend} className="p-3 bg-white dark:bg-gray-800 border-t dark:border-gray-700 flex items-center gap-2 transition-colors">
-        <input
-          type="text"
-          className="flex-1 px-4 py-2.5 border dark:border-gray-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors"
-          placeholder="메시지를 입력하세요..."
-          value={message}
-          onChange={(e) => {
-            setMessage(e.target.value);
-            handleTypingInput(); // 타이핑 이벤트 발행
-          }}
-          maxLength={1000}
-        />
-        <Button type="submit" loading={sendMutation.isPending} className="rounded-full px-5">전송</Button>
+      <form onSubmit={handleSend} className="p-3 bg-white dark:bg-gray-800 border-t dark:border-gray-700 transition-colors">
+        {isUploading && (
+          <div className="mb-2 px-3">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              <span className="text-xs">{uploadProgress}%</span>
+            </div>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileSelect}
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.pptx,.jpg,.jpeg,.png,.gif,.zip"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
+            title="파일 첨부"
+          >
+            <PaperClipIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+          <input
+            type="text"
+            className="flex-1 px-4 py-2.5 border dark:border-gray-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors"
+            placeholder="메시지를 입력하세요..."
+            value={message}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              handleTypingInput(); // 타이핑 이벤트 발행
+            }}
+            maxLength={1000}
+          />
+          <Button type="submit" loading={sendMutation.isPending} className="rounded-full px-5">전송</Button>
+        </div>
       </form>
 
       {/* 재연결 버튼 (연결 실패 시에만 표시) */}
@@ -191,6 +370,18 @@ export function ChatPage() {
             다시 연결
           </Button>
         </div>
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <ExportModal
+          onExport={(options) => {
+            exportChat(options);
+            setShowExportModal(false);
+          }}
+          onClose={() => setShowExportModal(false)}
+          isExporting={isExporting}
+        />
       )}
     </div>
   );

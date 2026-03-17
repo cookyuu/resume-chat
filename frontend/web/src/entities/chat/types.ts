@@ -13,10 +13,12 @@ export interface RecruiterEnterResponse {
 
 export interface RecruiterSendMessageRequest {
   message: string;
+  attachmentId?: string;
 }
 
 export interface ApplicantSendMessageRequest {
   message: string;
+  attachmentId?: string;
 }
 
 export interface SendMessageResponse {
@@ -36,8 +38,8 @@ export interface ChatSession {
   recruiterEmail: string;
   recruiterName: string;
   recruiterCompany: string;
-  applicantEmail?: string;  // 지원자 이메일 (백엔드 추가 필요)
-  applicantName?: string;   // 지원자 이름 (백엔드 추가 필요)
+  applicantEmail?: string;
+  applicantName?: string;
   totalMessages: number;
   unreadMessages: number;
   lastMessageAt: string;
@@ -58,6 +60,14 @@ export interface ChatMessage {
   senderType: SenderType;
   readStatus: boolean;
   sentAt: string;
+  attachment?: {
+    attachmentId: string;
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    fileUrl: string;
+    uploadedAt: string;
+  };
 }
 
 export interface SessionMessages {

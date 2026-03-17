@@ -1,4 +1,5 @@
 import { type ButtonHTMLAttributes } from 'react';
+import { motion } from 'framer-motion';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger';
@@ -19,11 +20,16 @@ export function Button({
   className = '',
   ...props
 }: ButtonProps) {
+  const MotionButton = motion.button;
+
   return (
-    <button
+    <MotionButton
+      whileHover={!disabled && !loading ? { scale: 1.02 } : {}}
+      whileTap={!disabled && !loading ? { scale: 0.98 } : {}}
+      transition={{ duration: 0.15, ease: [0.4, 0.0, 0.2, 1] }}
       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed ${variants[variant]} ${className}`}
       disabled={disabled || loading}
-      {...props}
+      {...(props as any)}
     >
       {loading ? (
         <span className="flex items-center gap-2">
@@ -34,6 +40,6 @@ export function Button({
           처리 중...
         </span>
       ) : children}
-    </button>
+    </MotionButton>
   );
 }

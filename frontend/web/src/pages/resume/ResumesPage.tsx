@@ -142,6 +142,18 @@ export function ResumesPage() {
                   <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{formatDateTime(resume.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => {
+                          if (resume.fileUrl) {
+                            window.open(resume.fileUrl, '_blank');
+                          } else {
+                            toast.error('파일 URL을 찾을 수 없습니다.');
+                          }
+                        }}
+                        className="px-2.5 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900 rounded hover:bg-purple-100 dark:hover:bg-purple-800"
+                      >
+                        보기
+                      </button>
                       <Link to={`/resumes/${resume.resumeSlug}/chats`}>
                         <button className="px-2.5 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900 rounded hover:bg-blue-100 dark:hover:bg-blue-800">
                           채팅

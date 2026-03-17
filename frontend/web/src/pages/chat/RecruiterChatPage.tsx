@@ -2,14 +2,15 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useEnterRecruiterChat, useRecruiterMessages, useSendRecruiterChatMessage } from '@/features/chat';
 import type { RecruiterEnterResponse } from '@/entities/chat';
-import { Button, Input, Skeleton, EmptyState, TypingIndicator } from '@/shared/ui';
+import { Button, Input, Skeleton, EmptyState, TypingIndicator, AttachmentDisplay } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/date';
 import { getWebSocketClient, type ConnectionStatus } from '@/shared/api/websocket';
 import { useChatWebSocket } from '@/shared/hooks/useChatWebSocket';
 import { useTypingIndicator } from '@/shared/hooks/useTypingIndicator';
+import { useUploadRecruiterAttachment } from '@/shared/hooks/useUploadRecruiterAttachment';
 import { recruiterChatQueryKeys } from '@/shared/lib/queryKeys';
 import { useDarkMode } from '@/shared/hooks/useDarkMode';
-import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
+import { SunIcon, MoonIcon, PaperClipIcon } from '@heroicons/react/24/outline';
 
 const STORAGE_KEY_PREFIX = 'recruiter_session_';
 
@@ -154,6 +155,7 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
   const [applicantOnline, setApplicantOnline] = useState(false);
   const [applicantTyping, setApplicantTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -189,6 +191,64 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
     senderType: 'RECRUITER',
     onCounterpartTyping: setApplicantTyping,
   });
+
+  // 파일 업로드 (채용담당자용)
+  const { mutate: uploadFile, isPending: isUploading, uploadProgress } = useUploadRecruiterAttachment(queryKey);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 파일 타입 체크
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+      'application/msword', // doc
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+      'application/vnd.ms-excel', // xls
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'application/zip',
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      alert('지원하지 않는 파일 형식입니다.');
+      return;
+    }
+
+    // 파일 크기 체크
+    const isImage = file.type.startsWith('image/');
+    const isZip = file.type === 'application/zip';
+    const maxSize = isZip ? 20 * 1024 * 1024 : isImage ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      const maxSizeMB = maxSize / (1024 * 1024);
+      alert(`파일 크기는 ${maxSizeMB}MB를 초과할 수 없습니다.`);
+      return;
+    }
+
+    // 파일 업로드 성공 시 자동으로 메시지 전송
+    uploadFile(
+      { sessionToken: session.sessionToken, file },
+      {
+        onSuccess: (attachment) => {
+          console.log('파일 업로드 성공:', attachment);
+          // 첨부파일ID를 포함한 메시지 자동 전송
+          sendMutation.mutate({
+            message: '', // 파일만 전송
+            attachmentId: attachment.attachmentId,
+          });
+        },
+      }
+    );
+
+    // input 초기화
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -291,7 +351,18 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
                       : 'bg-white dark:bg-gray-800 border dark:border-gray-700 dark:text-white rounded-bl-md'
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                  {msg.message && <p className="text-sm whitespace-pre-wrap">{msg.message}</p>}
+                  {msg.attachment && (
+                    <div className={msg.message ? 'mt-2' : ''}>
+                      <AttachmentDisplay
+                        attachmentId={msg.attachment.attachmentId}
+                        fileName={msg.attachment.fileName}
+                        fileSize={msg.attachment.fileSize}
+                        fileType={msg.attachment.fileType}
+                        fileUrl={msg.attachment.fileUrl}
+                      />
+                    </div>
+                  )}
                   <p
                     className={`text-xs mt-1 ${
                       isRecruiter ? 'text-blue-200' : 'text-gray-400'
@@ -310,21 +381,52 @@ function RecruiterChatRoom({ session }: { session: RecruiterEnterResponse }) {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSend} className="p-3 bg-white dark:bg-gray-800 border-t dark:border-gray-700 flex items-center gap-2 transition-colors">
-        <input
-          type="text"
-          className="flex-1 px-4 py-2.5 border dark:border-gray-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors"
-          placeholder="메시지를 입력하세요..."
-          value={message}
-          onChange={(e) => {
-            setMessage(e.target.value);
-            handleTypingInput(); // 타이핑 이벤트 발행
-          }}
-          maxLength={1000}
-        />
-        <Button type="submit" loading={sendMutation.isPending} className="rounded-full px-5">
-          전송
-        </Button>
+      <form onSubmit={handleSend} className="p-3 bg-white dark:bg-gray-800 border-t dark:border-gray-700 transition-colors">
+        {isUploading && (
+          <div className="mb-2 px-3">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              <span className="text-xs">{uploadProgress}%</span>
+            </div>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileSelect}
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.pptx,.jpg,.jpeg,.png,.gif,.zip"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
+            title="파일 첨부"
+          >
+            <PaperClipIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+          <input
+            type="text"
+            className="flex-1 px-4 py-2.5 border dark:border-gray-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors"
+            placeholder="메시지를 입력하세요..."
+            value={message}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              handleTypingInput(); // 타이핑 이벤트 발행
+            }}
+            maxLength={1000}
+          />
+          <Button type="submit" loading={sendMutation.isPending} className="rounded-full px-5">
+            전송
+          </Button>
+        </div>
       </form>
 
       {/* 재연결 버튼 (연결 실패 시에만 표시) */}

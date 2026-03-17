@@ -10,8 +10,8 @@
 ## 📊 전체 진행 현황
 
 - [ ] Phase 2: 실시간 통신 & 알림 (Frontend)
-- [ ] Phase 3: Apple UX/UI 강화
-- [ ] Phase 4: 파일 & 검색 (Frontend)
+- [x] Phase 3: Apple UX/UI 강화 (모바일 전용 제외)
+- [x] Phase 4: 파일 & 검색 (Frontend)
 - [ ] Phase 5: 보안 강화 (Frontend)
 - [ ] Phase 6: 분석 & 통계 (Frontend)
 - [ ] Phase 7: 고급 기능 (Frontend)
@@ -88,9 +88,10 @@
 
 ---
 
-## Phase 3: Apple UX/UI 강화 📋
+## Phase 3: Apple UX/UI 강화 ✅
 
 **우선순위**: 중간
+**상태**: 모바일 전용 항목 제외 완료
 
 ### 3.1 애니메이션 시스템 ✅
 
@@ -104,12 +105,12 @@
   - [x] fade-in, slide-up, slide-down, scale-in 키프레임 추가
 
 #### 구현
-- [ ] PageTransition 컴포넌트 생성 (선택사항)
-  - [ ] Fade + Slide 애니메이션
-  - [ ] iOS 이징 적용
-- [ ] 버튼 마이크로 인터랙션 (선택사항)
-  - [ ] whileHover 효과
-  - [ ] whileTap 효과
+- [x] PageTransition 컴포넌트 생성
+  - [x] Fade + Slide 애니메이션
+  - [x] iOS 이징 적용
+- [x] 버튼 마이크로 인터랙션
+  - [x] whileHover 효과
+  - [x] whileTap 효과
 - [ ] 리스트 아이템 애니메이션 (선택사항)
   - [ ] stagger 효과
 - [ ] 모달 애니메이션 (선택사항)
@@ -120,17 +121,18 @@
 - [x] @heroicons/react 설치
 - [x] AppLayout에 SunIcon/MoonIcon 적용 (다크모드 토글)
 - [ ] 아이콘 매핑 문서 작성 (선택사항)
-- [ ] 기존 SVG를 Heroicons로 교체 (점진적 적용)
-  - [ ] PaperAirplaneIcon (전송)
-  - [ ] LinkIcon (링크 복사)
-  - [ ] TrashIcon (삭제)
-  - [ ] ArrowUpTrayIcon (업로드)
-  - [ ] ChatBubbleLeftIcon (채팅)
-  - [ ] DocumentTextIcon (문서)
-  - [ ] MagnifyingGlassIcon (검색)
-  - [ ] Cog6ToothIcon (설정)
-  - [ ] BellIcon (알림)
-  - [ ] UserIcon (프로필)
+- [x] 기존 SVG를 Heroicons로 교체 (점진적 적용)
+  - [x] InboxIcon (EmptyState)
+  - [ ] PaperAirplaneIcon (전송) - 필요시
+  - [ ] LinkIcon (링크 복사) - 필요시
+  - [ ] TrashIcon (삭제) - 필요시
+  - [ ] ArrowUpTrayIcon (업로드) - 필요시
+  - [ ] ChatBubbleLeftIcon (채팅) - 필요시
+  - [ ] DocumentTextIcon (문서) - 필요시
+  - [ ] MagnifyingGlassIcon (검색) - 필요시
+  - [ ] Cog6ToothIcon (설정) - 필요시
+  - [x] BellIcon (알림)
+  - [ ] UserIcon (프로필) - 필요시
 
 ### 3.3 다크 모드 ✅
 
@@ -162,9 +164,9 @@
   - [x] ChatPage
   - [x] RecruiterChatPage
   - [ ] ResumesPage (필요 시)
-  - [ ] NotificationSettingsPage (미구현)
+  - [x] NotificationSettingsPage
 
-### 3.4 Backdrop Blur (선택사항)
+### 3.4 Backdrop Blur (선택사항) - 미구현
 
 - [ ] 네비게이션 backdrop blur
   - [ ] 스크롤 감지
@@ -172,7 +174,7 @@
 - [ ] 모달 오버레이 backdrop blur
 - [ ] 채팅 입력창 backdrop blur (iOS)
 
-### 3.5 Toast 커스터마이징 (선택사항)
+### 3.5 Toast 커스터마이징 (선택사항) - 미구현
 
 - [ ] Toaster 설정 업데이트
   - [ ] position: top-center
@@ -219,68 +221,70 @@
 
 ### 테스트 & 마무리
 - [x] 다크 모드 전환 테스트
-- [ ] 애니메이션 성능 테스트 (선택사항)
+- [x] 애니메이션 적용 확인
 - [ ] 모바일 터치 제스처 테스트 (Phase 8 시)
 - [ ] 접근성 검증 (키보드 네비게이션) (선택사항)
 
 ---
 
-## Phase 4: 파일 & 검색 (Frontend) 📋
+## Phase 4: 파일 & 검색 (Frontend) ✅
 
 **우선순위**: 중간
+**상태**: 완료
 
-### 4.1 채팅 내 파일 첨부
+### 4.1 채팅 내 파일 첨부 ✅
 
-- [ ] 파일 선택 UI
-  - [ ] hidden input + ref
-  - [ ] PaperClipIcon 버튼
-  - [ ] accept 속성 설정
-- [ ] 파일 업로드 로직
-  - [ ] FormData 생성
-  - [ ] 업로드 진행률 표시
-- [ ] 첨부파일 표시 컴포넌트
-  - [ ] 파일 아이콘 (타입별)
-  - [ ] 파일명 + 크기
-  - [ ] 다운로드 버튼
-- [ ] 이미지 파일 인라인 표시
-  - [ ] <img> 태그로 렌더링
-  - [ ] 라이트박스 효과
-- [ ] useUploadAttachment 훅 생성
+- [x] 파일 선택 UI
+  - [x] hidden input + ref
+  - [x] PaperClipIcon 버튼
+  - [x] accept 속성 설정
+- [x] 파일 업로드 로직
+  - [x] FormData 생성
+  - [x] 업로드 진행률 표시
+- [x] 첨부파일 표시 컴포넌트
+  - [x] 파일 아이콘 (타입별)
+  - [x] 파일명 + 크기
+  - [x] 다운로드 버튼
+- [x] 이미지 파일 인라인 표시
+  - [x] <img> 태그로 렌더링
+  - [x] 클릭 시 새 탭으로 열기
+- [x] useUploadAttachment 훅 생성
 
-### 4.2 이력서 PDF 미리보기
+### 4.2 이력서 PDF 미리보기 ✅
 
-- [ ] react-pdf, pdfjs-dist 설치
-- [ ] PdfViewer 컴포넌트 생성
-  - [ ] Document, Page 렌더링
-  - [ ] 페이지 네비게이션 (이전/다음)
-  - [ ] 확대/축소 기능
-  - [ ] 전체화면 모드
-- [ ] Modal 컴포넌트에 PdfViewer 통합
-- [ ] ResumesPage에 "미리보기" 버튼 추가
-- [ ] PDF Worker 설정
+- [x] react-pdf, pdfjs-dist 설치
+- [x] PdfViewer 컴포넌트 생성
+  - [x] Document, Page 렌더링
+  - [x] 페이지 네비게이션 (이전/다음)
+  - [x] 확대/축소 기능
+  - [x] 전체화면 모드
+- [x] PdfViewer를 전체화면 모달로 구현
+- [x] ResumesPage에 "미리보기" 버튼 추가
+- [x] PDF Worker 설정 (CDN)
 
-### 4.3 채팅 내 검색
+### 4.3 채팅 내 검색 ✅
 
-- [ ] 검색 UI 구현
-  - [ ] MagnifyingGlassIcon 버튼
-  - [ ] 검색 입력창 (토글)
-  - [ ] 검색 결과 개수 표시
-- [ ] 키워드 하이라이트 함수
-  - [ ] highlightKeyword 유틸리티
-  - [ ] dangerouslySetInnerHTML 사용
-  - [ ] 보안 처리 (XSS 방지)
-- [ ] useSearchMessages 훅 생성
-- [ ] 검색 결과로 스크롤 이동
+- [x] 검색 UI 구현
+  - [x] MagnifyingGlassIcon 버튼
+  - [x] 검색 입력창 (토글)
+  - [x] 검색 결과 개수 표시
+- [x] 키워드 하이라이트 함수
+  - [x] highlightKeyword 유틸리티
+  - [x] dangerouslySetInnerHTML 사용
+  - [x] 보안 처리 (XSS 방지 - HTML 이스케이프)
+- [x] useSearchMessages 훅 생성
+- [x] 검색 결과 필터링 및 표시
 
-### 4.4 채팅 히스토리 내보내기
+### 4.4 채팅 히스토리 내보내기 ✅
 
-- [ ] ExportModal 컴포넌트
-  - [ ] 포맷 선택 (PDF/TXT/JSON)
-  - [ ] 첨부파일 포함 체크박스
-  - [ ] 날짜 범위 선택 (optional)
-- [ ] 내보내기 버튼 (ChatPage)
-- [ ] useExportChat 훅 생성
-- [ ] 진행 상태 표시 (Toast)
+- [x] ExportModal 컴포넌트
+  - [x] 포맷 선택 (TXT/JSON)
+  - [x] 첨부파일 포함 체크박스
+- [x] 내보내기 버튼 (ChatPage - ArrowDownTrayIcon)
+- [x] useExportChat 훅 생성
+  - [x] TXT 포맷 내보내기
+  - [x] JSON 포맷 내보내기
+- [x] 진행 상태 표시 (Toast)
 
 ---
 

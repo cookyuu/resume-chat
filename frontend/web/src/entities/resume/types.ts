@@ -3,6 +3,7 @@ export interface Resume {
   title: string;
   description: string;
   originalFileName: string;
+  fileUrl: string;
   chatLink: string;
   viewCnt: number;
   createdAt: string;

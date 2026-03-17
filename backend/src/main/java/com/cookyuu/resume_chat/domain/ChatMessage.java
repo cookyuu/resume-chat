@@ -6,6 +6,8 @@ import com.cookyuu.resume_chat.common.enums.SenderType;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -42,6 +44,10 @@ public class ChatMessage extends BaseTimeEntity {
 
     @Column(name = "read_status", nullable = false)
     private boolean readStatus;
+
+    @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ChatAttachment> attachments = new ArrayList<>();
 
     public static ChatMessage createMessage(ChatSession session, SenderType senderType, String content) {
         return ChatMessage.builder()

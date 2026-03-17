@@ -44,7 +44,8 @@ public enum ErrorCode {
     INVALID_FILE_NAME("F002", "유효하지 않은 파일명입니다", HttpStatus.BAD_REQUEST),
     INVALID_FILE_EXTENSION("F003", "허용되지 않은 파일 확장자입니다", HttpStatus.BAD_REQUEST),
     FILE_SIZE_EXCEEDED("F004", "파일 크기가 제한을 초과했습니다", HttpStatus.BAD_REQUEST),
-    FILE_STORAGE_ERROR("F005", "파일 저장 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+    FILE_STORAGE_ERROR("F005", "파일 저장 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+    FILE_NOT_FOUND("F006", "파일을 찾을 수 없습니다", HttpStatus.NOT_FOUND);
 
     private final String code;
     private final String message;

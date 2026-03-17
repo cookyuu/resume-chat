@@ -1,19 +1,21 @@
 package com.cookyuu.resume_chat.service;
 
+import com.cookyuu.resume_chat.common.enums.MessageType;
 import com.cookyuu.resume_chat.common.enums.SenderType;
 import com.cookyuu.resume_chat.common.exception.BusinessException;
 import com.cookyuu.resume_chat.common.response.ErrorCode;
+import com.cookyuu.resume_chat.config.AppProperties;
+import com.cookyuu.resume_chat.domain.*;
 import com.cookyuu.resume_chat.dto.ChatDto;
-import com.cookyuu.resume_chat.domain.Applicant;
-import com.cookyuu.resume_chat.domain.ChatMessage;
-import com.cookyuu.resume_chat.domain.ChatSession;
-import com.cookyuu.resume_chat.domain.Resume;
 import com.cookyuu.resume_chat.repository.ApplicantRepository;
+import com.cookyuu.resume_chat.repository.ChatAttachmentRepository;
 import com.cookyuu.resume_chat.repository.ChatMessageRepository;
 import com.cookyuu.resume_chat.repository.ChatSessionRepository;
 import com.cookyuu.resume_chat.repository.ResumeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,7 +23,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.net.MalformedURLException;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -34,10 +39,13 @@ public class ChatService {
 
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final ChatAttachmentRepository chatAttachmentRepository;
     private final ResumeRepository resumeRepository;
     private final ApplicantRepository applicantRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final EmailService emailService;
+    private final FileStorageService fileStorageService;
+    private final AppProperties appProperties;
 
     @Transactional
     public ChatDto.SendMessageResponse sendMessage(UUID resumeSlug, ChatDto.SendMessageRequest request) {
@@ -604,5 +612,189 @@ public class ChatService {
                 applicantUuid, sessionToken, lastMessageId, messages.size());
 
         return new ChatDto.IncrementalMessagesResponse(messageInfos, messageInfos.size());
+    }
+
+    /**
+     * 첨부파일 업로드 (지원자)
+     *
+     * @param applicantUuid 지원자 UUID
+     * @param sessionToken 세션 토큰
+     * @param file 업로드할 파일
+     * @return 첨부파일 업로드 응답
+     */
+    @Transactional
+    public ChatDto.AttachmentUploadResponse uploadAttachment(
+            UUID applicantUuid,
+            String sessionToken,
+            MultipartFile file
+    ) {
+        // 지원자 조회
+        Applicant applicant = applicantRepository.findByUuid(applicantUuid)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+
+        // 세션 조회
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        // 권한 검증
+        if (!session.getResume().getApplicant().getId().equals(applicant.getId())) {
+            throw new BusinessException(ErrorCode.SESSION_ACCESS_DENIED);
+        }
+
+        // 파일 저장
+        String storedFileName = fileStorageService.storeAttachment(file);
+
+        // 첨부파일 메시지 생성
+        ChatMessage message = ChatMessage.createMessage(
+                session,
+                SenderType.APPLICANT,
+                MessageType.FILE,
+                file.getOriginalFilename()
+        );
+        chatMessageRepository.save(message);
+
+        // 첨부파일 엔티티 생성
+        ChatAttachment attachment = ChatAttachment.createAttachment(
+                message,
+                file.getOriginalFilename(),
+                storedFileName,
+                file.getSize(),
+                file.getContentType()
+        );
+        chatAttachmentRepository.save(attachment);
+
+        // 세션 메시지 카운트 증가
+        session.incrementMessageCount();
+
+        // 다운로드 URL 생성
+        String downloadUrl = appProperties.getFrontendUrl() + "/api/applicant/chat/attachments/" + attachment.getAttachmentId();
+
+        log.info("첨부파일 업로드 완료: applicantUuid={}, sessionToken={}, fileName={}",
+                applicantUuid, sessionToken, file.getOriginalFilename());
+
+        return ChatDto.AttachmentUploadResponse.from(attachment, downloadUrl);
+    }
+
+    /**
+     * 첨부파일 다운로드 (지원자)
+     *
+     * @param applicantUuid 지원자 UUID
+     * @param attachmentId 첨부파일 ID
+     * @return 파일 Resource
+     */
+    public Resource getAttachment(UUID applicantUuid, UUID attachmentId) {
+        // 지원자 조회
+        Applicant applicant = applicantRepository.findByUuid(applicantUuid)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+
+        // 첨부파일 조회
+        ChatAttachment attachment = chatAttachmentRepository.findByAttachmentId(attachmentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FILE_NOT_FOUND));
+
+        // 권한 검증
+        ChatSession session = attachment.getMessage().getSession();
+        if (!session.getResume().getApplicant().getId().equals(applicant.getId())) {
+            throw new BusinessException(ErrorCode.SESSION_ACCESS_DENIED);
+        }
+
+        try {
+            Path filePath = fileStorageService.getAttachmentPath(attachment.getFilePath());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
+                log.info("첨부파일 다운로드 성공: attachmentId={}, fileName={}",
+                        attachmentId, attachment.getFileName());
+                return resource;
+            } else {
+                log.error("첨부파일을 읽을 수 없음: attachmentId={}, filePath={}",
+                        attachmentId, filePath);
+                throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
+            }
+        } catch (MalformedURLException e) {
+            log.error("잘못된 파일 경로: attachmentId={}, error={}",
+                    attachmentId, e.getMessage());
+            throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
+        }
+    }
+
+    /**
+     * 채용담당자 첨부파일 업로드
+     *
+     * @param sessionToken 세션 토큰
+     * @param file 업로드할 파일
+     * @return 업로드된 첨부파일 정보
+     */
+    @Transactional
+    public ChatDto.AttachmentUploadResponse uploadRecruiterAttachment(String sessionToken, MultipartFile file) {
+        // 세션 조회
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        // 파일 저장
+        String storedFileName = fileStorageService.storeAttachment(file);
+
+        // 메시지 생성 (FILE 타입)
+        ChatMessage message = ChatMessage.createMessage(
+                session,
+                SenderType.RECRUITER,
+                MessageType.FILE,
+                file.getOriginalFilename()
+        );
+        chatMessageRepository.save(message);
+
+        // 첨부파일 정보 저장
+        ChatAttachment attachment = ChatAttachment.createAttachment(
+                message,
+                file.getOriginalFilename(),
+                storedFileName,
+                file.getSize(),
+                file.getContentType()
+        );
+        chatAttachmentRepository.save(attachment);
+
+        // 세션 메시지 카운트 증가
+        session.incrementMessageCount();
+
+        // WebSocket 브로드캐스트
+        broadcastMessage(session.getSessionToken(), message);
+
+        // 다운로드 URL 생성
+        String downloadUrl = appProperties.getFrontendUrl() + "/api/chat/attachments/" + attachment.getAttachmentId();
+
+        log.info("채용담당자 첨부파일 업로드 완료: sessionToken={}, fileName={}",
+                sessionToken, file.getOriginalFilename());
+
+        return ChatDto.AttachmentUploadResponse.from(attachment, downloadUrl);
+    }
+
+    /**
+     * 채용담당자 첨부파일 다운로드
+     *
+     * @param attachmentId 첨부파일 ID
+     * @return 파일 Resource
+     */
+    public Resource getRecruiterAttachment(UUID attachmentId) {
+        // 첨부파일 조회
+        ChatAttachment attachment = chatAttachmentRepository.findByAttachmentId(attachmentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FILE_NOT_FOUND));
+
+        try {
+            Path filePath = fileStorageService.getAttachmentPath(attachment.getFilePath());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
+                log.info("채용담당자 첨부파일 다운로드 성공: attachmentId={}, fileName={}",
+                        attachmentId, attachment.getFileName());
+                return resource;
+            } else {
+                log.error("첨부파일을 읽을 수 없음: attachmentId={}, filePath={}",
+                        attachmentId, filePath);
+                throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
+            }
+        } catch (MalformedURLException e) {
+            log.error("잘못된 파일 경로: attachmentId={}, error={}",
+                    attachmentId, e.getMessage());
+            throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
+        }
     }
 }

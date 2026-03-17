@@ -16,11 +16,14 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -894,5 +897,87 @@ public class ChatController {
         }
 
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "채팅 첨부파일 업로드 (지원자)",
+            description = "지원자가 채팅 메시지에 파일을 첨부합니다.\n\n" +
+                    "- JWT 인증이 필요합니다.\n" +
+                    "- 지원 파일 형식: PDF, DOCX, PPTX, JPG, PNG, GIF, ZIP\n" +
+                    "- 크기 제한: 문서 10MB, 이미지 5MB, 압축 20MB",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @PostMapping("/applicant/chat/{sessionToken}/attachments")
+    public ResponseEntity<ApiResponse<ChatDto.AttachmentUploadResponse>> uploadAttachment(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "세션 토큰", required = true)
+            @PathVariable("sessionToken") String sessionToken,
+            @Parameter(description = "업로드할 파일", required = true)
+            @RequestParam("file") MultipartFile file) {
+
+        ChatDto.AttachmentUploadResponse response = chatService.uploadAttachment(
+                userDetails.getUuid(), sessionToken, file
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "채팅 첨부파일 다운로드 (지원자)",
+            description = "지원자가 첨부파일을 다운로드합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @GetMapping("/applicant/chat/attachments/{attachmentId}")
+    public ResponseEntity<Resource> downloadAttachment(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "첨부파일 ID", required = true)
+            @PathVariable("attachmentId") UUID attachmentId) {
+
+        // ChatService에서 파일 정보 조회 및 권한 검증
+        Resource file = chatService.getAttachment(userDetails.getUuid(), attachmentId);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename() + "\"")
+                .body(file);
+    }
+
+    @Operation(
+            summary = "채팅 첨부파일 업로드 (채용담당자)",
+            description = "채용담당자가 채팅 메시지에 파일을 첨부합니다.\n\n" +
+                    "- 인증이 필요하지 않은 public 엔드포인트입니다.\n" +
+                    "- 지원 파일 형식: PDF, DOCX, PPTX, JPG, PNG, GIF, ZIP\n" +
+                    "- 크기 제한: 문서 10MB, 이미지 5MB, 압축 20MB"
+    )
+    @PostMapping("/chat/session/{sessionToken}/attachments")
+    public ResponseEntity<ApiResponse<ChatDto.AttachmentUploadResponse>> uploadRecruiterAttachment(
+            @Parameter(description = "세션 토큰", required = true)
+            @PathVariable("sessionToken") String sessionToken,
+            @Parameter(description = "업로드할 파일", required = true)
+            @RequestParam("file") MultipartFile file) {
+
+        ChatDto.AttachmentUploadResponse response = chatService.uploadRecruiterAttachment(
+                sessionToken, file
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "채팅 첨부파일 다운로드 (채용담당자)",
+            description = "채용담당자가 첨부파일을 다운로드합니다.\n\n" +
+                    "- 인증이 필요하지 않은 public 엔드포인트입니다."
+    )
+    @GetMapping("/chat/attachments/{attachmentId}")
+    public ResponseEntity<Resource> downloadRecruiterAttachment(
+            @Parameter(description = "첨부파일 ID", required = true)
+            @PathVariable("attachmentId") UUID attachmentId) {
+
+        Resource file = chatService.getRecruiterAttachment(attachmentId);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename() + "\"")
+                .body(file);
     }
 }

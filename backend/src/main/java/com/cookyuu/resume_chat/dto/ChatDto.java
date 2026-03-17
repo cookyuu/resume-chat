@@ -2,6 +2,7 @@ package com.cookyuu.resume_chat.dto;
 
 import com.cookyuu.resume_chat.common.enums.MessageType;
 import com.cookyuu.resume_chat.common.enums.SenderType;
+import com.cookyuu.resume_chat.domain.ChatAttachment;
 import com.cookyuu.resume_chat.domain.ChatMessage;
 import com.cookyuu.resume_chat.domain.ChatSession;
 import jakarta.validation.constraints.Email;
@@ -120,14 +121,25 @@ public class ChatDto {
         private SenderType senderType;
         private boolean readStatus;
         private LocalDateTime sentAt;
+        private AttachmentInfo attachment;
 
         public static MessageInfo from(ChatMessage message) {
+            AttachmentInfo attachment = null;
+            if (!message.getAttachments().isEmpty()) {
+                ChatAttachment chatAttachment = message.getAttachments().get(0);
+                attachment = AttachmentInfo.from(
+                        chatAttachment,
+                        "/api/applicant/chat/attachments/" + chatAttachment.getAttachmentId()
+                );
+            }
+
             return new MessageInfo(
                     message.getMessageId(),
                     message.getContent(),
                     message.getSenderType(),
                     message.isReadStatus(),
-                    message.getCreatedAt()
+                    message.getCreatedAt(),
+                    attachment
             );
         }
     }
@@ -431,5 +443,67 @@ public class ChatDto {
          * 이벤트 발생 시각
          */
         private LocalDateTime timestamp;
+    }
+
+    /**
+     * 첨부파일 업로드 응답 DTO
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class AttachmentUploadResponse {
+        private UUID attachmentId;
+        private UUID messageId;
+        private String fileName;
+        private Long fileSize;
+        private String mimeType;
+        private String downloadUrl;
+        private LocalDateTime uploadedAt;
+
+        public static AttachmentUploadResponse from(
+                com.cookyuu.resume_chat.domain.ChatAttachment attachment,
+                String downloadUrl
+        ) {
+            return AttachmentUploadResponse.builder()
+                    .attachmentId(attachment.getAttachmentId())
+                    .messageId(attachment.getMessage().getMessageId())
+                    .fileName(attachment.getFileName())
+                    .fileSize(attachment.getFileSize())
+                    .mimeType(attachment.getMimeType())
+                    .downloadUrl(downloadUrl)
+                    .uploadedAt(attachment.getCreatedAt())
+                    .build();
+        }
+    }
+
+    /**
+     * 첨부파일 정보 DTO
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class AttachmentInfo {
+        private UUID attachmentId;
+        private String fileName;
+        private Long fileSize;
+        private String mimeType;
+        private String downloadUrl;
+        private LocalDateTime uploadedAt;
+
+        public static AttachmentInfo from(
+                com.cookyuu.resume_chat.domain.ChatAttachment attachment,
+                String downloadUrl
+        ) {
+            return AttachmentInfo.builder()
+                    .attachmentId(attachment.getAttachmentId())
+                    .fileName(attachment.getFileName())
+                    .fileSize(attachment.getFileSize())
+                    .mimeType(attachment.getMimeType())
+                    .downloadUrl(downloadUrl)
+                    .uploadedAt(attachment.getCreatedAt())
+                    .build();
+        }
     }
 }

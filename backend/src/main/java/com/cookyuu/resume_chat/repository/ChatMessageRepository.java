@@ -27,4 +27,11 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 
     // 증분 조회 (messageId 기반)
     List<ChatMessage> findBySessionAndIdGreaterThanOrderByCreatedAtAsc(ChatSession session, Long messageId);
+
+    // 채팅 내 검색 (대소문자 무시, 페이지네이션 지원)
+    Page<ChatMessage> findBySessionAndContentContainingIgnoreCaseOrderByCreatedAtDesc(
+            ChatSession session,
+            String keyword,
+            Pageable pageable
+    );
 }

@@ -13,6 +13,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -263,5 +265,38 @@ public class ResumeController {
         resumeService.deleteResume(userDetails.getUuid(), resumeSlug);
 
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @Operation(
+            summary = "이력서 PDF 파일 미리보기/다운로드",
+            description = "이력서 PDF 파일을 브라우저에서 미리보기하거나 다운로드합니다.\n\n" +
+                    "- JWT 인증이 필요합니다.\n" +
+                    "- Content-Disposition: inline으로 응답하여 브라우저에서 직접 열림\n" +
+                    "- PDF 파일만 지원",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "PDF 파일 반환 성공",
+                    content = @Content(mediaType = "application/pdf")
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "이력서를 찾을 수 없음"
+            )
+    })
+    @GetMapping("/{resumeSlug}/file")
+    public ResponseEntity<Resource> getResumeFile(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "이력서 고유 식별자 (UUID)", required = true)
+            @PathVariable("resumeSlug") UUID resumeSlug) {
+
+        Resource file = resumeService.getResumeFile(userDetails.getUuid(), resumeSlug);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getFilename() + "\"")
+                .body(file);
     }
 }

@@ -52,6 +52,9 @@ dependencies {
 	// PDF Export (iText7)
 	implementation 'com.itextpdf:itext7-core:7.2.5'
 
+	// Rate Limiting (Bucket4j)
+	implementation 'com.bucket4j:bucket4j-core:8.7.0'
+
 	// Database
 	runtimeOnly 'com.mysql:mysql-connector-j'
 

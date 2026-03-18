@@ -1360,13 +1360,21 @@ public ResponseEntity<String> verifyEmail(@RequestParam String token) {
 )}
 ```
 
-#### 5.3 Rate Limiting
+#### 5.3 Rate Limiting ✅
+
+**구현 완료** (2026-03-18):
+- [x] Bucket4j 의존성 추가 (버전 8.7.0)
+- [x] RateLimitingFilter 구현
+- [x] IP 기반 Rate Limiting
+- [x] 경로별 차등 제한 (일반 API 60회/분, 로그인 5회/분, 메시지 20회/분)
+- [x] X-RateLimit-Remaining 헤더 응답
+- [x] 429 Too Many Requests 에러 처리
 
 **Backend - Bucket4j 사용**:
 ```java
 // build.gradle
 dependencies {
-    implementation 'com.github.vladimir-bukhtoyarov:bucket4j-core:7.6.0'
+    implementation 'com.bucket4j:bucket4j-core:8.7.0'
 }
 
 // RateLimitingFilter.java
@@ -1443,29 +1451,39 @@ import ReCAPTCHA from 'react-google-recaptcha';
 - 로그인 (3회 실패 후)
 - 채용담당자 첫 메시지
 
-#### 5.5 악성 사용자 차단
+#### 5.5 악성 사용자 차단 ✅
+
+**구현 완료** (2026-03-18):
+- [x] BlockedIp Entity 생성
+- [x] BlockedEmail Entity 생성
+- [x] BlockedIpRepository 및 BlockedEmailRepository 구현
+- [x] BlockingFilter 구현 (IP 차단 확인)
+- [x] 만료 시간 기능 (IP 차단)
+- [x] ErrorCode에 보안 관련 에러 추가 (IP_BLOCKED, EMAIL_BLOCKED, RATE_LIMIT_EXCEEDED)
 
 **Database**:
 ```sql
-CREATE TABLE rc_blocked_ips (
+CREATE TABLE rc_blocked_ip (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    ip_address VARCHAR(45) NOT NULL,
+    ip_address VARCHAR(45) NOT NULL UNIQUE,
     reason VARCHAR(500),
-    blocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    blocked_at TIMESTAMP NOT NULL,
     expires_at TIMESTAMP,
-    UNIQUE KEY uk_ip (ip_address)
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
 );
 
-CREATE TABLE rc_blocked_emails (
+CREATE TABLE rc_blocked_email (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    email VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
     reason VARCHAR(500),
-    blocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_email (email)
+    blocked_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
 );
 ```
 
-**API** (관리자용):
+**API** (관리자용) - 향후 구현 예정:
 - `POST /api/admin/block/ip` - IP 차단
 - `POST /api/admin/block/email` - 이메일 차단
 - `DELETE /api/admin/block/ip/{ip}` - 차단 해제
@@ -1479,9 +1497,9 @@ CREATE TABLE rc_blocked_emails (
 - [ ] 2FA 활성화 및 로그인 시 검증
 - [ ] 백업 코드 생성 및 사용
 - [ ] 채용담당자 이메일 인증 필수
-- [ ] Rate limiting 동작 (429 에러)
+- [x] Rate limiting 동작 (429 에러) ✅
 - [ ] reCAPTCHA 검증
-- [ ] IP/이메일 차단 기능
+- [x] IP/이메일 차단 기능 (Filter 구현 완료) ✅
 
 ### 의존성
 - Phase 1 완료 필수

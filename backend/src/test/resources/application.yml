@@ -18,6 +18,23 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.H2Dialect
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: test@gmail.com
+    password: test-password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    test-connection: false
+
 jwt:
   secret: Y29va3l1dV9yZXN1bWVfY2hhdF9zZWNyZXRfa2V5XzIwMjZfdjFfc2VjdXJlX2VuY3J5cHRpb25fa2V5X2Zvcl9qd3RfdG9rZW5fZ2VuZXJhdGlvbg==
   access-token-expiration: 3600000
@@ -29,7 +46,11 @@ file:
   allowed-extensions: pdf
 
 app:
-  frontend-url: http://localhost:3000
+  frontend-url: http://localhost:31000
+  mail:
+    from: test@resumechat.com
+    from-name: Resume Chat Test
+    notification-delay-minutes: 5
 
 logging:
   level:

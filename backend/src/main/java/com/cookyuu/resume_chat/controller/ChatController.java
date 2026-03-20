@@ -1,6 +1,8 @@
 package com.cookyuu.resume_chat.controller;
 
+import com.cookyuu.resume_chat.common.exception.BusinessException;
 import com.cookyuu.resume_chat.common.response.ApiResponse;
+import com.cookyuu.resume_chat.common.response.ErrorCode;
 import com.cookyuu.resume_chat.dto.ChatDto;
 import com.cookyuu.resume_chat.security.CustomUserDetails;
 import com.cookyuu.resume_chat.service.ChatService;
@@ -14,11 +16,16 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Tag(name = "Chat", description = "채팅 관련 API")
@@ -669,5 +676,308 @@ public class ChatController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "페이지네이션 메시지 조회 (채용담당자용)",
+            description = "채팅 세션의 메시지를 페이지네이션으로 조회합니다.\n\n" +
+                    "- 기본값: page=0, size=20\n" +
+                    "- 최대 size: 100\n" +
+                    "- sort: asc (오래된 순), desc (최신 순)\n" +
+                    "- 인증이 필요하지 않은 public 엔드포인트입니다."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "data": {
+                                        "content": [
+                                          {
+                                            "messageId": "m1n2o3p4-q5r6-7890-stuv-wx1234567890",
+                                            "message": "안녕하세요",
+                                            "senderType": "RECRUITER",
+                                            "readStatus": true,
+                                            "sentAt": "2024-02-13T09:00:00"
+                                          }
+                                        ],
+                                        "page": 0,
+                                        "size": 20,
+                                        "totalElements": 150,
+                                        "totalPages": 8,
+                                        "hasNext": true,
+                                        "hasPrevious": false
+                                      },
+                                      "timestamp": "2024-02-14T10:30:00"
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "채팅 세션을 찾을 수 없음"
+            )
+    })
+    @GetMapping("/chat/session/{sessionToken}/messages/paged")
+    public ResponseEntity<ApiResponse<ChatDto.PagedMessagesResponse>> getRecruiterSessionMessagesPaged(
+            @Parameter(description = "채팅 세션 토큰", required = true)
+            @PathVariable("sessionToken") String sessionToken,
+            @Parameter(description = "페이지 번호 (0부터 시작)")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기 (최대 100)")
+            @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "정렬 방향 (asc: 오래된 순, desc: 최신 순)")
+            @RequestParam(defaultValue = "asc") String sort) {
+
+        ChatDto.PagedMessagesResponse response = chatService.getSessionMessagesPaged(
+                sessionToken, page, size, sort
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "페이지네이션 메시지 조회 (지원자용)",
+            description = "채팅 세션의 메시지를 페이지네이션으로 조회합니다.\n\n" +
+                    "- 기본값: page=0, size=20\n" +
+                    "- 최대 size: 100\n" +
+                    "- sort: asc (오래된 순), desc (최신 순)\n" +
+                    "- JWT 인증이 필요하며, 본인의 채팅 세션만 조회 가능합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "권한 없음"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "채팅 세션을 찾을 수 없음"
+            )
+    })
+    @GetMapping("/applicant/chat/{sessionToken}/messages/paged")
+    public ResponseEntity<ApiResponse<ChatDto.PagedMessagesResponse>> getApplicantSessionMessagesPaged(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "채팅 세션 토큰", required = true)
+            @PathVariable("sessionToken") String sessionToken,
+            @Parameter(description = "페이지 번호 (0부터 시작)")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기 (최대 100)")
+            @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "정렬 방향 (asc: 오래된 순, desc: 최신 순)")
+            @RequestParam(defaultValue = "asc") String sort) {
+
+        ChatDto.PagedMessagesResponse response = chatService.getApplicantSessionMessagesPaged(
+                userDetails.getUuid(), sessionToken, page, size, sort
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "증분 메시지 조회 - timestamp 기반 (채용담당자용)",
+            description = "특정 시간 이후의 새 메시지만 조회합니다.\n\n" +
+                    "- timestamp 파라미터는 ISO-8601 형식입니다 (예: 2024-02-14T10:30:00)\n" +
+                    "- 해당 시간 이후(초과)의 메시지만 반환합니다.\n" +
+                    "- 인증이 필요하지 않은 public 엔드포인트입니다."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "data": {
+                                        "messages": [
+                                          {
+                                            "messageId": "m3n4o5p6-q7r8-9012-stuv-wx3456789012",
+                                            "message": "새 메시지입니다",
+                                            "senderType": "APPLICANT",
+                                            "readStatus": false,
+                                            "sentAt": "2024-02-14T11:00:00"
+                                          }
+                                        ],
+                                        "count": 1
+                                      },
+                                      "timestamp": "2024-02-14T11:05:00"
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "채팅 세션을 찾을 수 없음"
+            )
+    })
+    @GetMapping("/chat/session/{sessionToken}/messages/since")
+    public ResponseEntity<ApiResponse<ChatDto.IncrementalMessagesResponse>> getRecruiterMessagesSince(
+            @Parameter(description = "채팅 세션 토큰", required = true)
+            @PathVariable("sessionToken") String sessionToken,
+            @Parameter(description = "기준 시간 (ISO-8601 형식, 예: 2024-02-14T10:30:00)")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime timestamp,
+            @Parameter(description = "마지막 메시지 ID (내부 Long ID)")
+            @RequestParam(required = false) Long lastMessageId) {
+
+        ChatDto.IncrementalMessagesResponse response;
+
+        if (timestamp != null) {
+            response = chatService.getMessagesSinceTimestamp(sessionToken, timestamp);
+        } else if (lastMessageId != null) {
+            response = chatService.getMessagesSinceMessageId(sessionToken, lastMessageId);
+        } else {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "증분 메시지 조회 - timestamp 기반 (지원자용)",
+            description = "특정 시간 이후의 새 메시지만 조회합니다.\n\n" +
+                    "- timestamp 파라미터는 ISO-8601 형식입니다 (예: 2024-02-14T10:30:00)\n" +
+                    "- 해당 시간 이후(초과)의 메시지만 반환합니다.\n" +
+                    "- JWT 인증이 필요하며, 본인의 채팅 세션만 조회 가능합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "권한 없음"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "채팅 세션을 찾을 수 없음"
+            )
+    })
+    @GetMapping("/applicant/chat/{sessionToken}/messages/since")
+    public ResponseEntity<ApiResponse<ChatDto.IncrementalMessagesResponse>> getApplicantMessagesSince(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "채팅 세션 토큰", required = true)
+            @PathVariable("sessionToken") String sessionToken,
+            @Parameter(description = "기준 시간 (ISO-8601 형식, 예: 2024-02-14T10:30:00)")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime timestamp,
+            @Parameter(description = "마지막 메시지 ID (내부 Long ID)")
+            @RequestParam(required = false) Long lastMessageId) {
+
+        ChatDto.IncrementalMessagesResponse response;
+
+        if (timestamp != null) {
+            response = chatService.getApplicantMessagesSinceTimestamp(
+                    userDetails.getUuid(), sessionToken, timestamp
+            );
+        } else if (lastMessageId != null) {
+            response = chatService.getApplicantMessagesSinceMessageId(
+                    userDetails.getUuid(), sessionToken, lastMessageId
+            );
+        } else {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "채팅 첨부파일 업로드 (지원자)",
+            description = "지원자가 채팅 메시지에 파일을 첨부합니다.\n\n" +
+                    "- JWT 인증이 필요합니다.\n" +
+                    "- 지원 파일 형식: PDF, DOCX, PPTX, JPG, PNG, GIF, ZIP\n" +
+                    "- 크기 제한: 문서 10MB, 이미지 5MB, 압축 20MB",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @PostMapping("/applicant/chat/{sessionToken}/attachments")
+    public ResponseEntity<ApiResponse<ChatDto.AttachmentUploadResponse>> uploadAttachment(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "세션 토큰", required = true)
+            @PathVariable("sessionToken") String sessionToken,
+            @Parameter(description = "업로드할 파일", required = true)
+            @RequestParam("file") MultipartFile file) {
+
+        ChatDto.AttachmentUploadResponse response = chatService.uploadAttachment(
+                userDetails.getUuid(), sessionToken, file
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "채팅 첨부파일 다운로드 (지원자)",
+            description = "지원자가 첨부파일을 다운로드합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @GetMapping("/applicant/chat/attachments/{attachmentId}")
+    public ResponseEntity<Resource> downloadAttachment(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "첨부파일 ID", required = true)
+            @PathVariable("attachmentId") UUID attachmentId) {
+
+        // ChatService에서 파일 정보 조회 및 권한 검증
+        Resource file = chatService.getAttachment(userDetails.getUuid(), attachmentId);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename() + "\"")
+                .body(file);
+    }
+
+    @Operation(
+            summary = "채팅 첨부파일 업로드 (채용담당자)",
+            description = "채용담당자가 채팅 메시지에 파일을 첨부합니다.\n\n" +
+                    "- 인증이 필요하지 않은 public 엔드포인트입니다.\n" +
+                    "- 지원 파일 형식: PDF, DOCX, PPTX, JPG, PNG, GIF, ZIP\n" +
+                    "- 크기 제한: 문서 10MB, 이미지 5MB, 압축 20MB"
+    )
+    @PostMapping("/chat/session/{sessionToken}/attachments")
+    public ResponseEntity<ApiResponse<ChatDto.AttachmentUploadResponse>> uploadRecruiterAttachment(
+            @Parameter(description = "세션 토큰", required = true)
+            @PathVariable("sessionToken") String sessionToken,
+            @Parameter(description = "업로드할 파일", required = true)
+            @RequestParam("file") MultipartFile file) {
+
+        ChatDto.AttachmentUploadResponse response = chatService.uploadRecruiterAttachment(
+                sessionToken, file
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response));
+    }
+
+    @Operation(
+            summary = "채팅 첨부파일 다운로드 (채용담당자)",
+            description = "채용담당자가 첨부파일을 다운로드합니다.\n\n" +
+                    "- 인증이 필요하지 않은 public 엔드포인트입니다."
+    )
+    @GetMapping("/chat/attachments/{attachmentId}")
+    public ResponseEntity<Resource> downloadRecruiterAttachment(
+            @Parameter(description = "첨부파일 ID", required = true)
+            @PathVariable("attachmentId") UUID attachmentId) {
+
+        Resource file = chatService.getRecruiterAttachment(attachmentId);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename() + "\"")
+                .body(file);
     }
 }

@@ -1,6 +1,6 @@
 package com.cookyuu.resume_chat.dto;
 
-import com.cookyuu.resume_chat.entity.Resume;
+import com.cookyuu.resume_chat.domain.Resume;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -55,17 +55,20 @@ public class ResumeDto {
         private String description;
         private String originalFileName;
         private String chatLink;
+        private String fileUrl;
         private int viewCnt;
         private LocalDateTime createdAt;
 
         public static ResumeInfo from(Resume resume, String frontendUrl) {
             String chatLink = frontendUrl + "/chat/" + resume.getResumeSlug();
+            String fileUrl = frontendUrl + "/api/applicant/resumes/" + resume.getResumeSlug() + "/download";
             return new ResumeInfo(
                     resume.getResumeSlug(),
                     resume.getTitle(),
                     resume.getDescription(),
                     resume.getOriginalFileName(),
                     chatLink,
+                    fileUrl,
                     resume.getViewCnt(),
                     resume.getCreatedAt()
             );

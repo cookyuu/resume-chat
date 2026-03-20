@@ -1,6 +1,6 @@
 package com.cookyuu.resume_chat.security;
 
-import com.cookyuu.resume_chat.entity.Applicant;
+import com.cookyuu.resume_chat.domain.Applicant;
 import com.cookyuu.resume_chat.repository.ApplicantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;

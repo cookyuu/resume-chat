@@ -1,6 +1,6 @@
-package com.cookyuu.resume_chat.entity;
+package com.cookyuu.resume_chat.domain;
 
-import com.cookyuu.resume_chat.common.entity.BaseTimeEntity;
+import com.cookyuu.resume_chat.common.domain.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -42,16 +42,6 @@ public class Resume extends BaseTimeEntity {
     @Builder.Default
     @OneToMany(mappedBy = "resume", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChatSession> chatSessions = new ArrayList<>();
-
-    @PrePersist
-    public void prePersist() {
-        if (this.resumeSlug == null) {
-            this.resumeSlug = UUID.randomUUID();
-        }
-        if (this.viewCnt == 0) {
-            this.viewCnt = 0;
-        }
-    }
 
     public static Resume createNewResume(Applicant applicant, String title, String description,
                                          String filePath, String originalFileName) {

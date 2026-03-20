@@ -1,6 +1,6 @@
-package com.cookyuu.resume_chat.entity;
+package com.cookyuu.resume_chat.domain;
 
-import com.cookyuu.resume_chat.common.entity.BaseTimeEntity;
+import com.cookyuu.resume_chat.common.domain.BaseTimeEntity;
 import com.cookyuu.resume_chat.common.enums.ApplicantStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -38,13 +38,6 @@ public class Applicant extends BaseTimeEntity {
     private ApplicantStatus status;
 
     private int loginFailCnt;
-
-    @PrePersist
-    public void prePersist() {
-        if (this.uuid == null) {
-            this.uuid = UUID.randomUUID();
-        }
-    }
 
     public static Applicant createNewApplicant(String email, String name, String encodedPassword) {
         return Applicant.builder()

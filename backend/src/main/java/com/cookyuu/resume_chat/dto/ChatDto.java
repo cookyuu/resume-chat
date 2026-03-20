@@ -1,12 +1,16 @@
 package com.cookyuu.resume_chat.dto;
 
+import com.cookyuu.resume_chat.common.enums.MessageType;
 import com.cookyuu.resume_chat.common.enums.SenderType;
-import com.cookyuu.resume_chat.entity.ChatMessage;
-import com.cookyuu.resume_chat.entity.ChatSession;
+import com.cookyuu.resume_chat.domain.ChatAttachment;
+import com.cookyuu.resume_chat.domain.ChatMessage;
+import com.cookyuu.resume_chat.domain.ChatSession;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -71,6 +75,8 @@ public class ChatDto {
         private String sessionToken;
         private UUID resumeSlug;
         private String resumeTitle;
+        private String applicantEmail;
+        private String applicantName;
         private String recruiterEmail;
         private String recruiterName;
         private String recruiterCompany;
@@ -80,10 +86,19 @@ public class ChatDto {
         private LocalDateTime createdAt;
 
         public static SessionInfo from(ChatSession session, long unreadCount) {
+            String applicantEmail = session.getResume() != null && session.getResume().getApplicant() != null
+                    ? session.getResume().getApplicant().getEmail()
+                    : null;
+            String applicantName = session.getResume() != null && session.getResume().getApplicant() != null
+                    ? session.getResume().getApplicant().getName()
+                    : null;
+
             return new SessionInfo(
                     session.getSessionToken(),
                     session.getResume().getResumeSlug(),
                     session.getResume().getTitle(),
+                    applicantEmail,
+                    applicantName,
                     session.getRecruiterEmail(),
                     session.getRecruiterName(),
                     session.getRecruiterCompany(),
@@ -106,14 +121,25 @@ public class ChatDto {
         private SenderType senderType;
         private boolean readStatus;
         private LocalDateTime sentAt;
+        private AttachmentInfo attachment;
 
         public static MessageInfo from(ChatMessage message) {
+            AttachmentInfo attachment = null;
+            if (!message.getAttachments().isEmpty()) {
+                ChatAttachment chatAttachment = message.getAttachments().get(0);
+                attachment = AttachmentInfo.from(
+                        chatAttachment,
+                        "/api/applicant/chat/attachments/" + chatAttachment.getAttachmentId()
+                );
+            }
+
             return new MessageInfo(
                     message.getMessageId(),
                     message.getContent(),
                     message.getSenderType(),
                     message.isReadStatus(),
-                    message.getCreatedAt()
+                    message.getCreatedAt(),
+                    attachment
             );
         }
     }
@@ -262,6 +288,222 @@ public class ChatDto {
                     message.getContent(),
                     message.getCreatedAt()
             );
+        }
+    }
+
+    /**
+     * 페이지네이션 메시지 조회 응답 DTO
+     */
+    @Getter
+    @AllArgsConstructor
+    public static class PagedMessagesResponse {
+        private List<MessageInfo> content;
+        private int page;
+        private int size;
+        private long totalElements;
+        private int totalPages;
+        private boolean hasNext;
+        private boolean hasPrevious;
+    }
+
+    /**
+     * 증분 조회 메시지 응답 DTO (since timestamp or messageId)
+     */
+    @Getter
+    @AllArgsConstructor
+    public static class IncrementalMessagesResponse {
+        private List<MessageInfo> messages;
+        private int count;
+    }
+
+    /**
+     * WebSocket 채팅 메시지 DTO
+     *
+     * <p>WebSocket을 통해 브로드캐스트되는 실시간 채팅 메시지 형식입니다.</p>
+     *
+     * <h3>브로드캐스트 Destination</h3>
+     * <ul>
+     *   <li>클라이언트 구독: {@code /topic/session/{sessionToken}}</li>
+     *   <li>클라이언트 전송: {@code /app/chat/{sessionToken}}</li>
+     * </ul>
+     *
+     * <h3>필드 설명</h3>
+     * <ul>
+     *   <li><b>messageId</b>: 메시지 고유 식별자 (UUID)</li>
+     *   <li><b>sessionToken</b>: 채팅 세션 토큰</li>
+     *   <li><b>senderType</b>: 발신자 타입 (APPLICANT 또는 RECRUITER)</li>
+     *   <li><b>messageType</b>: 메시지 타입 (TEXT, IMAGE, FILE, SYSTEM)</li>
+     *   <li><b>content</b>: 메시지 내용</li>
+     *   <li><b>sentAt</b>: 전송 시각 (서버 시간 기준)</li>
+     * </ul>
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class WebSocketChatMessage {
+        /**
+         * 메시지 고유 식별자 (UUID)
+         */
+        private UUID messageId;
+
+        /**
+         * 채팅 세션 토큰
+         */
+        @NotBlank(message = "세션 토큰은 필수입니다")
+        private String sessionToken;
+
+        /**
+         * 발신자 타입 (APPLICANT 또는 RECRUITER)
+         */
+        @NotNull(message = "발신자 타입은 필수입니다")
+        private SenderType senderType;
+
+        /**
+         * 메시지 타입 (TEXT, IMAGE, FILE, SYSTEM)
+         * 기본값: TEXT
+         */
+        @NotNull(message = "메시지 타입은 필수입니다")
+        private MessageType messageType;
+
+        /**
+         * 메시지 내용
+         */
+        @NotBlank(message = "메시지 내용은 필수입니다")
+        @Size(min = 1, max = 1000, message = "메시지는 1자 이상 1000자 이하로 입력해주세요")
+        private String content;
+
+        /**
+         * 전송 시각 (서버 시간 기준)
+         */
+        private LocalDateTime sentAt;
+
+        /**
+         * ChatMessage 엔티티로부터 WebSocketChatMessage 생성
+         */
+        public static WebSocketChatMessage from(String sessionToken, ChatMessage message) {
+            return WebSocketChatMessage.builder()
+                    .messageId(message.getMessageId())
+                    .sessionToken(sessionToken)
+                    .senderType(message.getSenderType())
+                    .messageType(message.getMessageType())
+                    .content(message.getContent())
+                    .sentAt(message.getCreatedAt())
+                    .build();
+        }
+    }
+
+    /**
+     * 입력 중 표시(Typing Indicator) 이벤트
+     *
+     * <p>사용자가 메시지를 입력 중일 때 다른 사용자에게 실시간으로 알리기 위한 DTO입니다.</p>
+     *
+     * <h3>브로드캐스트 패턴</h3>
+     * <ul>
+     *   <li>Destination: {@code /topic/session/{sessionToken}/typing}</li>
+     *   <li>클라이언트가 입력 시작 시: typing = true 전송</li>
+     *   <li>클라이언트가 입력 중단 시: typing = false 전송</li>
+     *   <li>자동 타임아웃: 3초간 새 입력 없으면 typing = false로 간주</li>
+     * </ul>
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TypingEvent {
+        /**
+         * 채팅 세션 토큰
+         */
+        @NotBlank(message = "세션 토큰은 필수입니다")
+        private String sessionToken;
+
+        /**
+         * 입력 중인 사용자의 표시 이름
+         * - 지원자: 이메일 또는 이름
+         * - 채용담당자: 채용담당자 이름 또는 회사명
+         */
+        @NotBlank(message = "사용자 이름은 필수입니다")
+        private String senderName;
+
+        /**
+         * 발신자 타입 (APPLICANT 또는 RECRUITER)
+         */
+        @NotNull(message = "발신자 타입은 필수입니다")
+        private SenderType senderType;
+
+        /**
+         * 입력 중 여부
+         * - true: 입력 중
+         * - false: 입력 중단
+         */
+        @NotNull(message = "입력 상태는 필수입니다")
+        private Boolean typing;
+
+        /**
+         * 이벤트 발생 시각
+         */
+        private LocalDateTime timestamp;
+    }
+
+    /**
+     * 첨부파일 업로드 응답 DTO
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class AttachmentUploadResponse {
+        private UUID attachmentId;
+        private UUID messageId;
+        private String fileName;
+        private Long fileSize;
+        private String mimeType;
+        private String downloadUrl;
+        private LocalDateTime uploadedAt;
+
+        public static AttachmentUploadResponse from(
+                com.cookyuu.resume_chat.domain.ChatAttachment attachment,
+                String downloadUrl
+        ) {
+            return AttachmentUploadResponse.builder()
+                    .attachmentId(attachment.getAttachmentId())
+                    .messageId(attachment.getMessage().getMessageId())
+                    .fileName(attachment.getFileName())
+                    .fileSize(attachment.getFileSize())
+                    .mimeType(attachment.getMimeType())
+                    .downloadUrl(downloadUrl)
+                    .uploadedAt(attachment.getCreatedAt())
+                    .build();
+        }
+    }
+
+    /**
+     * 첨부파일 정보 DTO
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class AttachmentInfo {
+        private UUID attachmentId;
+        private String fileName;
+        private Long fileSize;
+        private String mimeType;
+        private String downloadUrl;
+        private LocalDateTime uploadedAt;
+
+        public static AttachmentInfo from(
+                com.cookyuu.resume_chat.domain.ChatAttachment attachment,
+                String downloadUrl
+        ) {
+            return AttachmentInfo.builder()
+                    .attachmentId(attachment.getAttachmentId())
+                    .fileName(attachment.getFileName())
+                    .fileSize(attachment.getFileSize())
+                    .mimeType(attachment.getMimeType())
+                    .downloadUrl(downloadUrl)
+                    .uploadedAt(attachment.getCreatedAt())
+                    .build();
         }
     }
 }

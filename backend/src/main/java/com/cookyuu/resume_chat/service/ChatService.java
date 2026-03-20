@@ -1,22 +1,33 @@
 package com.cookyuu.resume_chat.service;
 
+import com.cookyuu.resume_chat.common.enums.MessageType;
 import com.cookyuu.resume_chat.common.enums.SenderType;
 import com.cookyuu.resume_chat.common.exception.BusinessException;
 import com.cookyuu.resume_chat.common.response.ErrorCode;
+import com.cookyuu.resume_chat.config.AppProperties;
+import com.cookyuu.resume_chat.domain.*;
 import com.cookyuu.resume_chat.dto.ChatDto;
-import com.cookyuu.resume_chat.entity.Applicant;
-import com.cookyuu.resume_chat.entity.ChatMessage;
-import com.cookyuu.resume_chat.entity.ChatSession;
-import com.cookyuu.resume_chat.entity.Resume;
 import com.cookyuu.resume_chat.repository.ApplicantRepository;
+import com.cookyuu.resume_chat.repository.ChatAttachmentRepository;
 import com.cookyuu.resume_chat.repository.ChatMessageRepository;
 import com.cookyuu.resume_chat.repository.ChatSessionRepository;
 import com.cookyuu.resume_chat.repository.ResumeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.net.MalformedURLException;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -28,13 +39,21 @@ public class ChatService {
 
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final ChatAttachmentRepository chatAttachmentRepository;
     private final ResumeRepository resumeRepository;
     private final ApplicantRepository applicantRepository;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final EmailService emailService;
+    private final FileStorageService fileStorageService;
+    private final AppProperties appProperties;
 
     @Transactional
     public ChatDto.SendMessageResponse sendMessage(UUID resumeSlug, ChatDto.SendMessageRequest request) {
         Resume resume = resumeRepository.findByResumeSlug(resumeSlug)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESUME_NOT_FOUND));
+
+        boolean isNewSession = chatSessionRepository.findByResumeAndRecruiterEmail(resume, request.getRecruiterEmail())
+                .isEmpty();
 
         ChatSession session = chatSessionRepository.findByResumeAndRecruiterEmail(resume, request.getRecruiterEmail())
                 .orElseGet(() -> {
@@ -52,8 +71,27 @@ public class ChatService {
 
         session.incrementMessageCount();
 
-        log.info("채팅 메시지 전송 완료: sessionToken={}, messageId={}, recruiterEmail={}",
-                session.getSessionToken(), message.getMessageId(), request.getRecruiterEmail());
+        // WebSocket 브로드캐스트
+        broadcastMessage(session.getSessionToken(), message);
+
+        // 이메일 알림
+        if (isNewSession) {
+            // 신규 세션: 즉시 발송
+            emailService.sendNewSessionNotification(session, request.getMessage());
+        } else {
+            // 기존 세션: 5분 지연 발송
+            emailService.scheduleNewMessageNotification(
+                    session.getSessionToken(),
+                    resume.getApplicant().getEmail(),
+                    resume.getApplicant().getName(),
+                    session.getRecruiterName(),
+                    SenderType.RECRUITER,
+                    request.getMessage()
+            );
+        }
+
+        log.info("채팅 메시지 전송 완료: sessionToken={}, messageId={}, recruiterEmail={}, isNewSession={}",
+                session.getSessionToken(), message.getMessageId(), request.getRecruiterEmail(), isNewSession);
 
         return ChatDto.SendMessageResponse.from(session, message);
     }
@@ -101,15 +139,23 @@ public class ChatService {
             throw new BusinessException(ErrorCode.RESUME_ACCESS_DENIED);
         }
 
-        long unreadCount = chatMessageRepository.countBySessionAndReadStatusFalse(session);
+        // 채용담당자가 보낸 읽지 않은 메시지만 카운트
+        long unreadCount = chatMessageRepository.countBySessionAndReadStatusFalseAndSenderType(
+                session, SenderType.RECRUITER);
 
         List<ChatMessage> messages = chatMessageRepository.findBySessionOrderByCreatedAtAsc(session);
 
-        messages.forEach(message -> {
-            if (!message.isReadStatus()) {
-                message.markAsRead();
-            }
-        });
+        // 채용담당자가 보낸 메시지만 읽음 처리
+        List<ChatMessage> recruiterUnreadMessages = chatMessageRepository
+                .findBySessionAndReadStatusFalseAndSenderType(session, SenderType.RECRUITER);
+
+        if (!recruiterUnreadMessages.isEmpty()) {
+            recruiterUnreadMessages.forEach(ChatMessage::markAsRead);
+            // 읽음 처리했으므로 알림 취소
+            emailService.cancelNotification(sessionToken);
+            log.info("지원자가 채용담당자 메시지 읽음 처리 및 알림 취소: sessionToken={}, 읽은 메시지 수={}",
+                    sessionToken, recruiterUnreadMessages.size());
+        }
 
         log.info("채팅 메시지 조회 완료: applicantUuid={}, sessionToken={}, messageCount={}, unreadCount={}",
                 applicantUuid, sessionToken, messages.size(), unreadCount);
@@ -138,7 +184,20 @@ public class ChatService {
 
         session.incrementMessageCount();
 
-        log.info("지원자 채팅 메시지 전송 완료: sessionToken={}, messageId={}, applicantUuid={}",
+        // WebSocket 브로드캐스트
+        broadcastMessage(session.getSessionToken(), message);
+
+        // 이메일 알림 예약 (채용담당자에게)
+        emailService.scheduleNewMessageNotification(
+                session.getSessionToken(),
+                session.getRecruiterEmail(),
+                session.getRecruiterName(),
+                applicant.getName(),
+                SenderType.APPLICANT,
+                request.getMessage()
+        );
+
+        log.info("지원자 채팅 메시지 전송 완료 및 알림 예약: sessionToken={}, messageId={}, applicantUuid={}",
                 session.getSessionToken(), message.getMessageId(), applicantUuid);
 
         return ChatDto.ApplicantSendMessageResponse.from(session, message);
@@ -169,16 +228,31 @@ public class ChatService {
         return ChatDto.EnterSessionResponse.from(session);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ChatDto.ChatDetailResponse getRecruiterSessionMessages(String sessionToken) {
         ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        long unreadCount = chatMessageRepository.countBySessionAndReadStatusFalse(session);
+        // 지원자가 보낸 읽지 않은 메시지만 카운트
+        long unreadCount = chatMessageRepository.countBySessionAndReadStatusFalseAndSenderType(
+                session, SenderType.APPLICANT);
 
         List<ChatMessage> messages = chatMessageRepository.findBySessionOrderByCreatedAtAsc(session);
 
-        log.info("채용담당자 메시지 조회: sessionToken={}, messageCount={}", sessionToken, messages.size());
+        // 지원자가 보낸 메시지만 읽음 처리
+        List<ChatMessage> applicantUnreadMessages = chatMessageRepository
+                .findBySessionAndReadStatusFalseAndSenderType(session, SenderType.APPLICANT);
+
+        if (!applicantUnreadMessages.isEmpty()) {
+            applicantUnreadMessages.forEach(ChatMessage::markAsRead);
+            // 읽음 처리했으므로 알림 취소
+            emailService.cancelNotification(sessionToken);
+            log.info("채용담당자가 지원자 메시지 읽음 처리 및 알림 취소: sessionToken={}, 읽은 메시지 수={}",
+                    sessionToken, applicantUnreadMessages.size());
+        }
+
+        log.info("채용담당자 메시지 조회: sessionToken={}, messageCount={}, unreadCount={}",
+                sessionToken, messages.size(), unreadCount);
 
         return ChatDto.ChatDetailResponse.of(session, messages, unreadCount);
     }
@@ -196,9 +270,531 @@ public class ChatService {
 
         session.incrementMessageCount();
 
-        log.info("채용담당자 메시지 전송 완료: sessionToken={}, messageId={}",
+        // WebSocket 브로드캐스트
+        broadcastMessage(sessionToken, message);
+
+        // 이메일 알림 예약 (지원자에게)
+        emailService.scheduleNewMessageNotification(
+                sessionToken,
+                session.getResume().getApplicant().getEmail(),
+                session.getResume().getApplicant().getName(),
+                session.getRecruiterName(),
+                SenderType.RECRUITER,
+                request.getMessage()
+        );
+
+        log.info("채용담당자 메시지 전송 완료 및 알림 예약: sessionToken={}, messageId={}",
                 sessionToken, message.getMessageId());
 
         return ChatDto.RecruiterSendMessageResponse.from(session, message);
+    }
+
+    /**
+     * 세션 토큰으로 세션 조회 (WebSocket용)
+     */
+    @Transactional(readOnly = true)
+    public ChatSession getSessionByToken(String sessionToken) {
+        return chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+    }
+
+    /**
+     * 메시지 저장 (WebSocket용)
+     */
+    @Transactional
+    public ChatMessage saveMessage(ChatMessage message) {
+        return chatMessageRepository.save(message);
+    }
+
+    /**
+     * WebSocket 메시지 저장 및 세션 업데이트
+     *
+     * @param sessionToken 세션 토큰
+     * @param senderType 발신자 타입
+     * @param content 메시지 내용
+     * @param applicantUuid 지원자 UUID (지원자인 경우에만 제공, 채용담당자는 null)
+     * @return 저장된 메시지
+     */
+    @Transactional
+    public ChatMessage saveMessageAndUpdateSession(String sessionToken, SenderType senderType, String content, UUID applicantUuid) {
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        // 지원자인 경우 권한 검증
+        if (senderType == SenderType.APPLICANT && applicantUuid != null) {
+            if (!session.getResume().getApplicant().getUuid().equals(applicantUuid)) {
+                log.error("지원자의 세션 접근 권한 없음 - applicantUuid: {}, sessionToken: {}",
+                        applicantUuid, sessionToken);
+                throw new BusinessException(ErrorCode.SESSION_ACCESS_DENIED);
+            }
+        }
+
+        ChatMessage message = ChatMessage.createMessage(session, senderType, content);
+        chatMessageRepository.save(message);
+
+        session.incrementMessageCount();
+
+        log.info("WebSocket 메시지 저장 완료 - sessionToken: {}, messageId: {}, senderType: {}",
+                sessionToken, message.getMessageId(), senderType);
+
+        return message;
+    }
+
+    /**
+     * WebSocket으로 메시지 브로드캐스트
+     *
+     * <p>저장된 메시지를 WebSocket을 통해 해당 세션의 모든 클라이언트에게 브로드캐스트합니다.</p>
+     *
+     * <h3>브로드캐스트 Destination 패턴</h3>
+     * <ul>
+     *   <li>Pattern: {@code /topic/session/{sessionToken}}</li>
+     *   <li>Example: {@code /topic/session/abc123-def456}</li>
+     * </ul>
+     *
+     * <h3>메시지 형식</h3>
+     * <ul>
+     *   <li>DTO: {@link ChatDto.WebSocketChatMessage}</li>
+     *   <li>필드: messageId, sessionToken, senderType, messageType, content, sentAt</li>
+     * </ul>
+     *
+     * @param sessionToken 세션 토큰
+     * @param message 저장된 메시지
+     */
+    private void broadcastMessage(String sessionToken, ChatMessage message) {
+        ChatDto.WebSocketChatMessage wsMessage = ChatDto.WebSocketChatMessage.from(sessionToken, message);
+
+        String destination = "/topic/session/" + sessionToken;
+        messagingTemplate.convertAndSend(destination, wsMessage);
+
+        log.info("WebSocket 메시지 브로드캐스트 완료 - destination: {}, messageId: {}, messageType: {}",
+                destination, message.getMessageId(), message.getMessageType());
+    }
+
+    /**
+     * 페이지네이션으로 메시지 조회 (채용담당자용)
+     *
+     * @param sessionToken 세션 토큰
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 크기 (최대 100)
+     * @param sortDirection 정렬 방향 (asc 또는 desc)
+     * @return 페이지네이션된 메시지 목록
+     */
+    @Transactional(readOnly = true)
+    public ChatDto.PagedMessagesResponse getSessionMessagesPaged(
+            String sessionToken,
+            int page,
+            int size,
+            String sortDirection) {
+
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        // size 제한 (최대 100)
+        int validatedSize = Math.min(size, 100);
+
+        // Pageable 생성
+        Sort sort = sortDirection.equalsIgnoreCase("asc")
+                ? Sort.by("createdAt").ascending()
+                : Sort.by("createdAt").descending();
+        Pageable pageable = PageRequest.of(page, validatedSize, sort);
+
+        // 페이지네이션 조회
+        Page<ChatMessage> messagePage = sortDirection.equalsIgnoreCase("asc")
+                ? chatMessageRepository.findBySessionOrderByCreatedAtAsc(session, pageable)
+                : chatMessageRepository.findBySessionOrderByCreatedAtDesc(session, pageable);
+
+        List<ChatDto.MessageInfo> messageInfos = messagePage.getContent().stream()
+                .map(ChatDto.MessageInfo::from)
+                .collect(Collectors.toList());
+
+        log.info("페이지네이션 메시지 조회 완료: sessionToken={}, page={}, size={}, totalElements={}",
+                sessionToken, page, validatedSize, messagePage.getTotalElements());
+
+        return new ChatDto.PagedMessagesResponse(
+                messageInfos,
+                messagePage.getNumber(),
+                messagePage.getSize(),
+                messagePage.getTotalElements(),
+                messagePage.getTotalPages(),
+                messagePage.hasNext(),
+                messagePage.hasPrevious()
+        );
+    }
+
+    /**
+     * 페이지네이션으로 메시지 조회 (지원자용)
+     *
+     * @param applicantUuid 지원자 UUID
+     * @param sessionToken 세션 토큰
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 크기 (최대 100)
+     * @param sortDirection 정렬 방향 (asc 또는 desc)
+     * @return 페이지네이션된 메시지 목록
+     */
+    @Transactional(readOnly = true)
+    public ChatDto.PagedMessagesResponse getApplicantSessionMessagesPaged(
+            UUID applicantUuid,
+            String sessionToken,
+            int page,
+            int size,
+            String sortDirection) {
+
+        Applicant applicant = applicantRepository.findByUuid(applicantUuid)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        // 권한 검증
+        if (!session.getResume().getApplicant().getId().equals(applicant.getId())) {
+            throw new BusinessException(ErrorCode.RESUME_ACCESS_DENIED);
+        }
+
+        // size 제한 (최대 100)
+        int validatedSize = Math.min(size, 100);
+
+        // Pageable 생성
+        Sort sort = sortDirection.equalsIgnoreCase("asc")
+                ? Sort.by("createdAt").ascending()
+                : Sort.by("createdAt").descending();
+        Pageable pageable = PageRequest.of(page, validatedSize, sort);
+
+        // 페이지네이션 조회
+        Page<ChatMessage> messagePage = sortDirection.equalsIgnoreCase("asc")
+                ? chatMessageRepository.findBySessionOrderByCreatedAtAsc(session, pageable)
+                : chatMessageRepository.findBySessionOrderByCreatedAtDesc(session, pageable);
+
+        List<ChatDto.MessageInfo> messageInfos = messagePage.getContent().stream()
+                .map(ChatDto.MessageInfo::from)
+                .collect(Collectors.toList());
+
+        log.info("지원자 페이지네이션 메시지 조회 완료: applicantUuid={}, sessionToken={}, page={}, size={}, totalElements={}",
+                applicantUuid, sessionToken, page, validatedSize, messagePage.getTotalElements());
+
+        return new ChatDto.PagedMessagesResponse(
+                messageInfos,
+                messagePage.getNumber(),
+                messagePage.getSize(),
+                messagePage.getTotalElements(),
+                messagePage.getTotalPages(),
+                messagePage.hasNext(),
+                messagePage.hasPrevious()
+        );
+    }
+
+    /**
+     * 특정 시간 이후 메시지 조회 (증분 조회 - timestamp 기반)
+     *
+     * @param sessionToken 세션 토큰
+     * @param timestamp 기준 시간
+     * @return 해당 시간 이후의 메시지 목록
+     */
+    @Transactional(readOnly = true)
+    public ChatDto.IncrementalMessagesResponse getMessagesSinceTimestamp(
+            String sessionToken,
+            LocalDateTime timestamp) {
+
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        List<ChatMessage> messages = chatMessageRepository
+                .findBySessionAndCreatedAtAfterOrderByCreatedAtAsc(session, timestamp);
+
+        List<ChatDto.MessageInfo> messageInfos = messages.stream()
+                .map(ChatDto.MessageInfo::from)
+                .collect(Collectors.toList());
+
+        log.info("증분 조회 (timestamp) 완료: sessionToken={}, timestamp={}, messageCount={}",
+                sessionToken, timestamp, messages.size());
+
+        return new ChatDto.IncrementalMessagesResponse(messageInfos, messageInfos.size());
+    }
+
+    /**
+     * 특정 메시지 ID 이후 메시지 조회 (증분 조회 - messageId 기반)
+     *
+     * @param sessionToken 세션 토큰
+     * @param lastMessageId 마지막 메시지 ID (내부 Long ID)
+     * @return 해당 ID 이후의 메시지 목록
+     */
+    @Transactional(readOnly = true)
+    public ChatDto.IncrementalMessagesResponse getMessagesSinceMessageId(
+            String sessionToken,
+            Long lastMessageId) {
+
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        List<ChatMessage> messages = chatMessageRepository
+                .findBySessionAndIdGreaterThanOrderByCreatedAtAsc(session, lastMessageId);
+
+        List<ChatDto.MessageInfo> messageInfos = messages.stream()
+                .map(ChatDto.MessageInfo::from)
+                .collect(Collectors.toList());
+
+        log.info("증분 조회 (messageId) 완료: sessionToken={}, lastMessageId={}, messageCount={}",
+                sessionToken, lastMessageId, messages.size());
+
+        return new ChatDto.IncrementalMessagesResponse(messageInfos, messageInfos.size());
+    }
+
+    /**
+     * 지원자용 증분 조회 (timestamp 기반)
+     *
+     * @param applicantUuid 지원자 UUID
+     * @param sessionToken 세션 토큰
+     * @param timestamp 기준 시간
+     * @return 해당 시간 이후의 메시지 목록
+     */
+    @Transactional(readOnly = true)
+    public ChatDto.IncrementalMessagesResponse getApplicantMessagesSinceTimestamp(
+            UUID applicantUuid,
+            String sessionToken,
+            LocalDateTime timestamp) {
+
+        Applicant applicant = applicantRepository.findByUuid(applicantUuid)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        // 권한 검증
+        if (!session.getResume().getApplicant().getId().equals(applicant.getId())) {
+            throw new BusinessException(ErrorCode.RESUME_ACCESS_DENIED);
+        }
+
+        List<ChatMessage> messages = chatMessageRepository
+                .findBySessionAndCreatedAtAfterOrderByCreatedAtAsc(session, timestamp);
+
+        List<ChatDto.MessageInfo> messageInfos = messages.stream()
+                .map(ChatDto.MessageInfo::from)
+                .collect(Collectors.toList());
+
+        log.info("지원자 증분 조회 (timestamp) 완료: applicantUuid={}, sessionToken={}, timestamp={}, messageCount={}",
+                applicantUuid, sessionToken, timestamp, messages.size());
+
+        return new ChatDto.IncrementalMessagesResponse(messageInfos, messageInfos.size());
+    }
+
+    /**
+     * 지원자용 증분 조회 (messageId 기반)
+     *
+     * @param applicantUuid 지원자 UUID
+     * @param sessionToken 세션 토큰
+     * @param lastMessageId 마지막 메시지 ID
+     * @return 해당 ID 이후의 메시지 목록
+     */
+    @Transactional(readOnly = true)
+    public ChatDto.IncrementalMessagesResponse getApplicantMessagesSinceMessageId(
+            UUID applicantUuid,
+            String sessionToken,
+            Long lastMessageId) {
+
+        Applicant applicant = applicantRepository.findByUuid(applicantUuid)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        // 권한 검증
+        if (!session.getResume().getApplicant().getId().equals(applicant.getId())) {
+            throw new BusinessException(ErrorCode.RESUME_ACCESS_DENIED);
+        }
+
+        List<ChatMessage> messages = chatMessageRepository
+                .findBySessionAndIdGreaterThanOrderByCreatedAtAsc(session, lastMessageId);
+
+        List<ChatDto.MessageInfo> messageInfos = messages.stream()
+                .map(ChatDto.MessageInfo::from)
+                .collect(Collectors.toList());
+
+        log.info("지원자 증분 조회 (messageId) 완료: applicantUuid={}, sessionToken={}, lastMessageId={}, messageCount={}",
+                applicantUuid, sessionToken, lastMessageId, messages.size());
+
+        return new ChatDto.IncrementalMessagesResponse(messageInfos, messageInfos.size());
+    }
+
+    /**
+     * 첨부파일 업로드 (지원자)
+     *
+     * @param applicantUuid 지원자 UUID
+     * @param sessionToken 세션 토큰
+     * @param file 업로드할 파일
+     * @return 첨부파일 업로드 응답
+     */
+    @Transactional
+    public ChatDto.AttachmentUploadResponse uploadAttachment(
+            UUID applicantUuid,
+            String sessionToken,
+            MultipartFile file
+    ) {
+        // 지원자 조회
+        Applicant applicant = applicantRepository.findByUuid(applicantUuid)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+
+        // 세션 조회
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        // 권한 검증
+        if (!session.getResume().getApplicant().getId().equals(applicant.getId())) {
+            throw new BusinessException(ErrorCode.SESSION_ACCESS_DENIED);
+        }
+
+        // 파일 저장
+        String storedFileName = fileStorageService.storeAttachment(file);
+
+        // 첨부파일 메시지 생성
+        ChatMessage message = ChatMessage.createMessage(
+                session,
+                SenderType.APPLICANT,
+                MessageType.FILE,
+                file.getOriginalFilename()
+        );
+        chatMessageRepository.save(message);
+
+        // 첨부파일 엔티티 생성
+        ChatAttachment attachment = ChatAttachment.createAttachment(
+                message,
+                file.getOriginalFilename(),
+                storedFileName,
+                file.getSize(),
+                file.getContentType()
+        );
+        chatAttachmentRepository.save(attachment);
+
+        // 세션 메시지 카운트 증가
+        session.incrementMessageCount();
+
+        // 다운로드 URL 생성
+        String downloadUrl = appProperties.getFrontendUrl() + "/api/applicant/chat/attachments/" + attachment.getAttachmentId();
+
+        log.info("첨부파일 업로드 완료: applicantUuid={}, sessionToken={}, fileName={}",
+                applicantUuid, sessionToken, file.getOriginalFilename());
+
+        return ChatDto.AttachmentUploadResponse.from(attachment, downloadUrl);
+    }
+
+    /**
+     * 첨부파일 다운로드 (지원자)
+     *
+     * @param applicantUuid 지원자 UUID
+     * @param attachmentId 첨부파일 ID
+     * @return 파일 Resource
+     */
+    public Resource getAttachment(UUID applicantUuid, UUID attachmentId) {
+        // 지원자 조회
+        Applicant applicant = applicantRepository.findByUuid(applicantUuid)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+
+        // 첨부파일 조회
+        ChatAttachment attachment = chatAttachmentRepository.findByAttachmentId(attachmentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FILE_NOT_FOUND));
+
+        // 권한 검증
+        ChatSession session = attachment.getMessage().getSession();
+        if (!session.getResume().getApplicant().getId().equals(applicant.getId())) {
+            throw new BusinessException(ErrorCode.SESSION_ACCESS_DENIED);
+        }
+
+        try {
+            Path filePath = fileStorageService.getAttachmentPath(attachment.getFilePath());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
+                log.info("첨부파일 다운로드 성공: attachmentId={}, fileName={}",
+                        attachmentId, attachment.getFileName());
+                return resource;
+            } else {
+                log.error("첨부파일을 읽을 수 없음: attachmentId={}, filePath={}",
+                        attachmentId, filePath);
+                throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
+            }
+        } catch (MalformedURLException e) {
+            log.error("잘못된 파일 경로: attachmentId={}, error={}",
+                    attachmentId, e.getMessage());
+            throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
+        }
+    }
+
+    /**
+     * 채용담당자 첨부파일 업로드
+     *
+     * @param sessionToken 세션 토큰
+     * @param file 업로드할 파일
+     * @return 업로드된 첨부파일 정보
+     */
+    @Transactional
+    public ChatDto.AttachmentUploadResponse uploadRecruiterAttachment(String sessionToken, MultipartFile file) {
+        // 세션 조회
+        ChatSession session = chatSessionRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+
+        // 파일 저장
+        String storedFileName = fileStorageService.storeAttachment(file);
+
+        // 메시지 생성 (FILE 타입)
+        ChatMessage message = ChatMessage.createMessage(
+                session,
+                SenderType.RECRUITER,
+                MessageType.FILE,
+                file.getOriginalFilename()
+        );
+        chatMessageRepository.save(message);
+
+        // 첨부파일 정보 저장
+        ChatAttachment attachment = ChatAttachment.createAttachment(
+                message,
+                file.getOriginalFilename(),
+                storedFileName,
+                file.getSize(),
+                file.getContentType()
+        );
+        chatAttachmentRepository.save(attachment);
+
+        // 세션 메시지 카운트 증가
+        session.incrementMessageCount();
+
+        // WebSocket 브로드캐스트
+        broadcastMessage(session.getSessionToken(), message);
+
+        // 다운로드 URL 생성
+        String downloadUrl = appProperties.getFrontendUrl() + "/api/chat/attachments/" + attachment.getAttachmentId();
+
+        log.info("채용담당자 첨부파일 업로드 완료: sessionToken={}, fileName={}",
+                sessionToken, file.getOriginalFilename());
+
+        return ChatDto.AttachmentUploadResponse.from(attachment, downloadUrl);
+    }
+
+    /**
+     * 채용담당자 첨부파일 다운로드
+     *
+     * @param attachmentId 첨부파일 ID
+     * @return 파일 Resource
+     */
+    public Resource getRecruiterAttachment(UUID attachmentId) {
+        // 첨부파일 조회
+        ChatAttachment attachment = chatAttachmentRepository.findByAttachmentId(attachmentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FILE_NOT_FOUND));
+
+        try {
+            Path filePath = fileStorageService.getAttachmentPath(attachment.getFilePath());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
+                log.info("채용담당자 첨부파일 다운로드 성공: attachmentId={}, fileName={}",
+                        attachmentId, attachment.getFileName());
+                return resource;
+            } else {
+                log.error("첨부파일을 읽을 수 없음: attachmentId={}, filePath={}",
+                        attachmentId, filePath);
+                throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
+            }
+        } catch (MalformedURLException e) {
+            log.error("잘못된 파일 경로: attachmentId={}, error={}",
+                    attachmentId, e.getMessage());
+            throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
+        }
     }
 }

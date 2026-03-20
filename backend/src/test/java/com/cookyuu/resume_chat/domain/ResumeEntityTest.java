@@ -1,4 +1,4 @@
-package com.cookyuu.resume_chat.entity;
+package com.cookyuu.resume_chat.domain;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -107,32 +107,6 @@ class ResumeEntityTest {
         assertThat(resume.getFilePath()).isEqualTo("stored-file.pdf");
         assertThat(resume.getOriginalFileName()).isEqualTo("resume.pdf");
         assertThat(resume.getViewCnt()).isEqualTo(5);
-    }
-
-    @Test
-    @DisplayName("resumeSlug가 null일 때 prePersist에서 자동 생성")
-    void prePersist_GeneratesResumeSlug() {
-        // Given
-        Applicant applicant = Applicant.builder()
-                .uuid(UUID.randomUUID())
-                .email("test@example.com")
-                .name("홍길동")
-                .password("password")
-                .build();
-
-        Resume resume = Resume.builder()
-                .applicant(applicant)
-                .title("이력서")
-                .filePath("file.pdf")
-                .originalFileName("resume.pdf")
-                .build();
-
-        // When
-        resume.prePersist();
-
-        // Then
-        assertThat(resume.getResumeSlug()).isNotNull();
-        assertThat(resume.getViewCnt()).isEqualTo(0);
     }
 
     @Test

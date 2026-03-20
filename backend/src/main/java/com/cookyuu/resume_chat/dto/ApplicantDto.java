@@ -1,6 +1,6 @@
 package com.cookyuu.resume_chat.dto;
 
-import com.cookyuu.resume_chat.entity.Applicant;
+import com.cookyuu.resume_chat.domain.Applicant;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -82,5 +82,14 @@ public class ApplicantDto {
                     applicant.getCreatedAt()
             );
         }
+    }
+
+    /**
+     * Refresh Token 응답 DTO
+     */
+    @Getter
+    @AllArgsConstructor
+    public static class RefreshTokenResponse {
+        private String accessToken;
     }
 }

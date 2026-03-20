@@ -1,7 +1,7 @@
 package com.cookyuu.resume_chat.repository;
 
-import com.cookyuu.resume_chat.entity.ChatSession;
-import com.cookyuu.resume_chat.entity.Resume;
+import com.cookyuu.resume_chat.domain.ChatSession;
+import com.cookyuu.resume_chat.domain.Resume;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

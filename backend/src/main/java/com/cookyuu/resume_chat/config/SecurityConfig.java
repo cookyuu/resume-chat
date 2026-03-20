@@ -41,6 +41,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/chat/*/enter").permitAll()
                         .requestMatchers("/api/chat/session/*/messages").permitAll()
                         .requestMatchers("/api/chat/session/*/send").permitAll()
+                        .requestMatchers("/ws/**").permitAll()  // WebSocket 엔드포인트 (레거시)
+                        .requestMatchers("/api/ws/**").permitAll()  // WebSocket 엔드포인트 (신규)
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated()
@@ -54,7 +56,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:8080")); // 프론트엔드 URL
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:31000",  // 프론트엔드 (Nginx)
+                "http://localhost:3000",   // 프론트엔드 (개발)
+                "http://localhost:5173",   // 프론트엔드 (Vite)
+                "http://localhost:8080"    // 백엔드
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

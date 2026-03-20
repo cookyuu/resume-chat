@@ -4,7 +4,7 @@ import com.cookyuu.resume_chat.command.ApplicantCommand;
 import com.cookyuu.resume_chat.common.exception.BusinessException;
 import com.cookyuu.resume_chat.common.response.ErrorCode;
 import com.cookyuu.resume_chat.dto.ApplicantDto;
-import com.cookyuu.resume_chat.entity.Applicant;
+import com.cookyuu.resume_chat.domain.Applicant;
 import com.cookyuu.resume_chat.repository.ApplicantRepository;
 import com.cookyuu.resume_chat.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -81,6 +81,37 @@ public class ApplicantService {
 
         log.info("프로필 조회: email={}, uuid={}", applicant.getEmail(), applicant.getUuid());
         return ApplicantDto.ProfileResponse.from(applicant);
+    }
+
+    public ApplicantDto.RefreshTokenResponse refreshAccessToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isEmpty()) {
+            log.warn("Refresh Token이 제공되지 않음");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            log.warn("유효하지 않은 Refresh Token");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        if (jwtTokenProvider.isTokenExpired(refreshToken)) {
+            log.warn("만료된 Refresh Token");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        UUID applicantUuid = jwtTokenProvider.getApplicantUuidFromToken(refreshToken);
+        Applicant applicant = applicantRepository.findByUuid(applicantUuid)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+
+        if (applicant.isAccountLocked()) {
+            log.warn("잠긴 계정의 토큰 갱신 시도: email={}", applicant.getEmail());
+            throw new BusinessException(ErrorCode.ACCOUNT_LOCKED);
+        }
+
+        String newAccessToken = jwtTokenProvider.generateAccessToken(applicant.getUuid(), applicant.getEmail());
+        log.info("Access Token 갱신 성공: email={}, uuid={}", applicant.getEmail(), applicant.getUuid());
+
+        return new ApplicantDto.RefreshTokenResponse(newAccessToken);
     }
 
     private Long findApplicantIdByUuid(UUID uuid) {

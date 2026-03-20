@@ -2,7 +2,7 @@ package com.cookyuu.resume_chat.integration;
 
 import com.cookyuu.resume_chat.common.enums.ApplicantStatus;
 import com.cookyuu.resume_chat.dto.ApplicantDto;
-import com.cookyuu.resume_chat.entity.Applicant;
+import com.cookyuu.resume_chat.domain.Applicant;
 import com.cookyuu.resume_chat.repository.ApplicantRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;

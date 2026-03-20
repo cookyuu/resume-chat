@@ -35,13 +35,22 @@ public enum ErrorCode {
     SESSION_NOT_FOUND("S001", "채팅 세션을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
     INVALID_SESSION_TOKEN("S002", "유효하지 않은 세션 토큰입니다", HttpStatus.UNAUTHORIZED),
     SESSION_EXPIRED("S003", "세션이 만료되었습니다", HttpStatus.UNAUTHORIZED),
+    SESSION_ACCESS_DENIED("S004", "채팅 세션 접근 권한이 없습니다", HttpStatus.FORBIDDEN),
+    WEBSOCKET_AUTH_REQUIRED("S005", "WebSocket 연결에 인증이 필요합니다", HttpStatus.UNAUTHORIZED),
+    INVALID_MESSAGE_TYPE("S006", "지원하지 않는 메시지 타입입니다", HttpStatus.BAD_REQUEST),
 
     // File
     INVALID_FILE("F001", "유효하지 않은 파일입니다", HttpStatus.BAD_REQUEST),
     INVALID_FILE_NAME("F002", "유효하지 않은 파일명입니다", HttpStatus.BAD_REQUEST),
     INVALID_FILE_EXTENSION("F003", "허용되지 않은 파일 확장자입니다", HttpStatus.BAD_REQUEST),
     FILE_SIZE_EXCEEDED("F004", "파일 크기가 제한을 초과했습니다", HttpStatus.BAD_REQUEST),
-    FILE_STORAGE_ERROR("F005", "파일 저장 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+    FILE_STORAGE_ERROR("F005", "파일 저장 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+    FILE_NOT_FOUND("F006", "파일을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+
+    // Security
+    IP_BLOCKED("SEC001", "차단된 IP 주소입니다", HttpStatus.FORBIDDEN),
+    EMAIL_BLOCKED("SEC002", "차단된 이메일 주소입니다", HttpStatus.FORBIDDEN),
+    RATE_LIMIT_EXCEEDED("SEC003", "요청 횟수가 제한을 초과했습니다", HttpStatus.TOO_MANY_REQUESTS);
 
     private final String code;
     private final String message;

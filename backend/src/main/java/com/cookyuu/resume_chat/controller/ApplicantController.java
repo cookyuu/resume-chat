@@ -309,4 +309,53 @@ public class ApplicantController {
         ApplicantDto.ProfileResponse response = applicantService.getProfile(userDetails.getUuid());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    @Operation(
+            summary = "Access Token 갱신",
+            description = "Refresh Token으로 새로운 Access Token을 발급받습니다.\n\n" +
+                    "- Refresh Token은 HttpOnly 쿠키로 전달됩니다.\n" +
+                    "- 유효한 Refresh Token이면 새로운 Access Token을 발급합니다.\n" +
+                    "- Refresh Token이 만료되거나 유효하지 않으면 401 에러가 발생합니다."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "토큰 갱신 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": true,
+                                      "data": {
+                                        "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                                      },
+                                      "timestamp": "2024-02-14T10:30:00"
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패 (Refresh Token 없음, 만료, 또는 유효하지 않음)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "success": false,
+                                      "error": {
+                                        "code": "C002",
+                                        "message": "인증이 필요합니다"
+                                      },
+                                      "timestamp": "2024-02-14T10:30:00"
+                                    }
+                                    """)
+                    )
+            )
+    })
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<ApplicantDto.RefreshTokenResponse>> refreshToken(
+            @CookieValue(name = "refreshToken", required = false) String refreshToken) {
+        ApplicantDto.RefreshTokenResponse response = applicantService.refreshAccessToken(refreshToken);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 }

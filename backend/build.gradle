@@ -55,6 +55,10 @@ dependencies {
 	// Rate Limiting (Bucket4j)
 	implementation 'com.bucket4j:bucket4j-core:8.7.0'
 
+	// Redis
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'org.springframework.boot:spring-boot-starter-cache'
+
 	// Database
 	runtimeOnly 'com.mysql:mysql-connector-j'
 

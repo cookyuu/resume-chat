@@ -34,19 +34,19 @@ public class NotificationSettingsController {
     private final NotificationSettingsService notificationSettingsService;
 
     /**
-     * 알림 설정 조회
-     *
-     * <p>지원자의 알림 설정을 조회합니다. 설정이 없으면 기본 설정을 생성하여 반환합니다.</p>
-     *
-     * <h3>기본 설정</h3>
-     * <ul>
-     *   <li>emailNewMessage: true</li>
-     *   <li>emailNewSession: true</li>
-     *   <li>pushNewMessage: false</li>
-     * </ul>
-     *
-     * @param userDetails 인증된 지원자 정보
-     * @return 알림 설정 응답
+     *      * 알림 설정 조회
+     *      *
+     *      * <p>지원자의 알림 설정을 조회합니다. 설정이 없으면 기본 설정을 생성하여 반환합니다.</p>
+     *      *
+     *      * <h3>기본 설정</h3>
+     *      * <ul>
+     *      *   <li>emailNewMessage: true</li>
+     *      *   <li>emailNewSession: true</li>
+     *      *   <li>pushNewMessage: false</li>
+     *      * </ul>
+     *      *
+     *      * @param userDetails 인증된 지원자 정보
+     *      * @return 알림 설정 응답
      */
     @GetMapping
     public ResponseEntity<ApiResponse<NotificationSettingsDto.Response>> getSettings(

@@ -1473,65 +1473,290 @@ public ResponseEntity<?> uploadResume(
 - [x] ResumeController의 `getMyResumes()` 메서드가 `ResumeInfo` 사용 확인 완료
 
 ---
+## ✅ 해결 완료 - Refresh Token API 구현 (2026-03-18)
 
-## 📋 fileUrl 형식 가이드
+### 문제 상황
+- 프론트엔드에서 JWT Access Token 만료 시 자동 갱신을 위해 Refresh Token API를 호출
+- 하지만 백엔드에 해당 API가 구현되지 않은 것으로 보임
+- 결과: 토큰 만료 시 자동 갱신 실패 → 사용자가 강제 로그아웃됨
 
-### 상대 경로 (권장)
-```
-/uploads/resumes/{resumeSlug}.pdf
-```
-- 프론트엔드에서 자동으로 절대 경로로 변환
-- 서버 도메인 변경에 유연하게 대응
+### 해결 완료
+- [x] POST /api/applicant/refresh 엔드포인트 구현 완료
+- [x] HttpOnly 쿠키에서 Refresh Token 추출
+- [x] JWT 유효성 검증 및 만료 확인
+- [x] 새로운 Access Token 발급
+- [x] 에러 처리 (UNAUTHORIZED)
+- [x] 빌드 성공 확인
 
-### 절대 경로
-```
-http://localhost:8080/uploads/resumes/{resumeSlug}.pdf
-```
-- 바로 사용 가능
-- 하지만 도메인 하드코딩 필요
+### 필요한 API
 
-**권장**: 상대 경로 사용
+#### POST /api/applicant/refresh
+
+**설명**: Refresh Token으로 새로운 Access Token을 발급
+
+**요청**:
+```http
+POST /api/applicant/refresh
+Content-Type: application/json
+Cookie: refreshToken=xxx (HttpOnly)
+```
+
+**요청 바디**: 없음 (null)
+
+**응답 (성공 - 200)**:
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+**응답 (실패 - 401)**:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_REFRESH_TOKEN",
+    "message": "Refresh Token이 유효하지 않습니다."
+  }
+}
+```
+
+---
+
+## ✅ 구현 체크리스트
+
+### 1️⃣ Refresh Token 저장 확인
+- [ ] 로그인 시 Refresh Token이 HttpOnly 쿠키로 저장되는지 확인
+- [ ] 쿠키 설정 확인:
+    - [ ] HttpOnly: true (XSS 방지)
+    - [ ] Secure: true (HTTPS only, 프로덕션)
+    - [ ] SameSite: Strict 또는 Lax
+    - [ ] Path: /
+    - [ ] Max-Age: 7일 (또는 14일)
+
+```java
+// 로그인 응답 예시
+Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
+refreshCookie.setHttpOnly(true);
+refreshCookie.setSecure(true); // HTTPS only
+refreshCookie.setPath("/");
+refreshCookie.setMaxAge(7 * 24 * 60 * 60); // 7일
+response.addCookie(refreshCookie);
+```
+
+### 2️⃣ Refresh Token 검증 로직
+- [ ] 쿠키에서 Refresh Token 추출
+- [ ] Refresh Token 유효성 검증
+    - [ ] JWT 서명 검증
+    - [ ] 만료 시간 확인
+    - [ ] DB 또는 Redis에 저장된 토큰과 일치 여부 확인 (선택사항)
+- [ ] 유효하지 않으면 401 에러 반환
+
+```java
+@PostMapping("/api/applicant/refresh")
+public ResponseEntity<?> refreshAccessToken(
+    @CookieValue(name = "refreshToken", required = false) String refreshToken
+) {
+    // 1. Refresh Token이 없으면 401
+    if (refreshToken == null || refreshToken.isEmpty()) {
+        return ResponseEntity.status(401)
+            .body(ApiResponse.error("MISSING_REFRESH_TOKEN", "Refresh Token이 필요합니다."));
+    }
+
+    try {
+        // 2. Refresh Token 검증
+        Claims claims = jwtUtil.validateRefreshToken(refreshToken);
+        String userEmail = claims.getSubject();
+
+        // 3. 사용자 정보 조회
+        User user = userRepository.findByEmail(userEmail)
+            .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // 4. 새로운 Access Token 발급
+        String newAccessToken = jwtUtil.generateAccessToken(user);
+
+        // 5. 응답
+        return ResponseEntity.ok(ApiResponse.success(
+            Map.of("accessToken", newAccessToken)
+        ));
+
+    } catch (ExpiredJwtException e) {
+        return ResponseEntity.status(401)
+            .body(ApiResponse.error("EXPIRED_REFRESH_TOKEN", "Refresh Token이 만료되었습니다."));
+    } catch (JwtException e) {
+        return ResponseEntity.status(401)
+            .body(ApiResponse.error("INVALID_REFRESH_TOKEN", "Refresh Token이 유효하지 않습니다."));
+    }
+}
+```
+
+### 3️⃣ JWT 유틸리티 메서드
+- [ ] `validateRefreshToken(String token)` 메서드 구현
+- [ ] `generateAccessToken(User user)` 메서드 구현
+
+```java
+public Claims validateRefreshToken(String token) throws JwtException {
+    return Jwts.parserBuilder()
+        .setSigningKey(refreshSecretKey)
+        .build()
+        .parseClaimsJws(token)
+        .getBody();
+}
+
+public String generateAccessToken(User user) {
+    Date now = new Date();
+    Date expiry = new Date(now.getTime() + accessTokenExpiry); // 15분 또는 1시간
+
+    return Jwts.builder()
+        .setSubject(user.getEmail())
+        .setIssuedAt(now)
+        .setExpiration(expiry)
+        .claim("uuid", user.getUuid())
+        .claim("name", user.getName())
+        .signWith(accessSecretKey, SignatureAlgorithm.HS256)
+        .compact();
+}
+```
+
+### 4️⃣ CORS 설정 확인
+- [ ] `/api/applicant/refresh` 엔드포인트에 대한 CORS 허용
+- [ ] `allowCredentials: true` 설정 (쿠키 전송 허용)
+
+```java
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+            .allowedOrigins("http://localhost:31001", "http://localhost:31000")
+            .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
+            .allowedHeaders("*")
+            .allowCredentials(true); // ✅ 쿠키 전송 허용
+    }
+}
+```
+
+### 5️⃣ Refresh Token Rotation (보안 강화 - 선택사항)
+- [ ] Refresh Token 사용 시 새로운 Refresh Token도 함께 발급
+- [ ] 기존 Refresh Token 무효화
+- [ ] 새 Refresh Token을 HttpOnly 쿠키로 재설정
+
+```java
+// 새로운 Refresh Token 발급
+String newRefreshToken = jwtUtil.generateRefreshToken(user);
+
+// 쿠키 재설정
+Cookie refreshCookie = new Cookie("refreshToken", newRefreshToken);
+refreshCookie.setHttpOnly(true);
+refreshCookie.setSecure(true);
+refreshCookie.setPath("/");
+refreshCookie.setMaxAge(7 * 24 * 60 * 60);
+response.addCookie(refreshCookie);
+
+// 기존 토큰 무효화 (Redis 사용 시)
+redisTemplate.delete("refresh_token:" + oldRefreshToken);
+redisTemplate.opsForValue().set("refresh_token:" + newRefreshToken, userEmail, 7, TimeUnit.DAYS);
+```
 
 ---
 
 ## 🧪 테스트 체크리스트
 
-### 1. 이력서 업로드 테스트
-- [ ] 새 이력서 업로드
-- [ ] DB에 `fileUrl` 저장 확인
-```sql
-SELECT resume_slug, title, file_url FROM resume ORDER BY created_at DESC LIMIT 1;
-```
+### 1. 정상 흐름 테스트
+- [ ] 로그인 → Refresh Token이 HttpOnly 쿠키로 저장됨
+- [ ] Access Token 만료 → `/api/applicant/refresh` 자동 호출
+- [ ] 새 Access Token 발급 → 이후 API 요청 정상 작동
 
-### 2. 이력서 목록 조회 테스트
-- [ ] API 호출
 ```bash
-curl -X GET "http://localhost:8080/api/applicant/resumes" \
-  -H "Authorization: Bearer {token}"
-```
-- [ ] 응답에 `fileUrl` 포함 확인
-```json
-{
-  "data": [
-    {
-      "resumeSlug": "...",
-      "fileUrl": "/uploads/resumes/xxx.pdf"  // ✅ 확인
-    }
-  ]
-}
+# 1. 로그인
+curl -X POST "http://localhost:8080/api/applicant/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}' \
+  -c cookies.txt
+
+# 2. Refresh Token으로 Access Token 재발급
+curl -X POST "http://localhost:8080/api/applicant/refresh" \
+  -b cookies.txt \
+  -H "Content-Type: application/json"
+
+# 기대 결과:
+# {
+#   "success": true,
+#   "data": {
+#     "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+#   }
+# }
 ```
 
-### 3. 파일 접근 테스트
-- [ ] 브라우저에서 파일 URL 직접 접근
+### 2. 에러 케이스 테스트
+- [ ] Refresh Token 없이 요청 → 401 에러
+- [ ] 만료된 Refresh Token → 401 에러
+- [ ] 잘못된 Refresh Token → 401 에러
+
+```bash
+# Refresh Token 없이 요청
+curl -X POST "http://localhost:8080/api/applicant/refresh" \
+  -H "Content-Type: application/json"
+
+# 기대 결과: 401 Unauthorized
+# {
+#   "success": false,
+#   "error": {
+#     "code": "MISSING_REFRESH_TOKEN",
+#     "message": "Refresh Token이 필요합니다."
+#   }
+# }
 ```
-http://localhost:8080/uploads/resumes/xxx.pdf
-```
-- [ ] PDF 파일이 정상적으로 열리는지 확인
-- [ ] CORS 설정 확인 (프론트엔드 도메인 허용)
+
+### 3. CORS 테스트
+- [ ] 프론트엔드에서 `/api/applicant/refresh` 호출 시 CORS 에러 없음
+- [ ] `withCredentials: true` 설정 시 쿠키 전송 확인
+
+---
+
+## 🔍 프론트엔드 동작 방식
+
+프론트엔드(`src/shared/api/client.ts`)는 이미 다음과 같이 구현되어 있습니다:
+
+1. **401 에러 감지** → Axios Interceptor가 자동으로 감지
+2. **Refresh Token으로 갱신 시도**:
+   ```typescript
+   const { data } = await axios.post('/api/applicant/refresh', null, {
+     withCredentials: true, // 쿠키 자동 전송
+   });
+   ```
+3. **성공** → 새 Access Token 저장 → 원래 요청 재시도
+4. **실패** → 로그아웃 → 팝업 → 로그인 페이지 리다이렉트
 
 ---
 
 ## 🔥 우선순위
-**HIGH** - 이력서 미리보기 기능이 전혀 작동하지 않습니다.
+**CRITICAL** - 이 API가 없으면 토큰 만료 시 사용자가 강제 로그아웃되어 UX가 매우 나쁩니다.
 
 ---
+
+## 📋 참고 사항
+
+### JWT 토큰 만료 시간 권장사항
+- **Access Token**: 15분 ~ 1시간 (짧을수록 보안에 유리)
+- **Refresh Token**: 7일 ~ 14일
+
+### 보안 고려사항
+1. **HttpOnly 쿠키 필수** - XSS 공격 방지
+2. **Secure 플래그** - HTTPS only (프로덕션)
+3. **SameSite** - CSRF 공격 방지
+4. **Refresh Token Rotation** - 재사용 공격 방지 (선택사항)
+5. **Redis/DB 저장** - 강제 로그아웃 구현 가능 (선택사항)
+
+---
+
+## ✅ 완료 확인
+
+백엔드 구현 완료 후 다음을 확인:
+- [ ] 로그인 시 Refresh Token 쿠키 설정 확인 (개발자 도구 → Application → Cookies)
+- [ ] Access Token 만료 시 자동 갱신 동작 확인
+- [ ] Refresh Token 만료 시 로그인 페이지 리다이렉트 확인
+- [ ] 프론트엔드에서 "로그인이 만료되었습니다" 팝업 확인

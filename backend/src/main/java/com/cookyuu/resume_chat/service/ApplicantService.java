@@ -83,6 +83,37 @@ public class ApplicantService {
         return ApplicantDto.ProfileResponse.from(applicant);
     }
 
+    public ApplicantDto.RefreshTokenResponse refreshAccessToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isEmpty()) {
+            log.warn("Refresh Token이 제공되지 않음");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            log.warn("유효하지 않은 Refresh Token");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        if (jwtTokenProvider.isTokenExpired(refreshToken)) {
+            log.warn("만료된 Refresh Token");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        UUID applicantUuid = jwtTokenProvider.getApplicantUuidFromToken(refreshToken);
+        Applicant applicant = applicantRepository.findByUuid(applicantUuid)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+
+        if (applicant.isAccountLocked()) {
+            log.warn("잠긴 계정의 토큰 갱신 시도: email={}", applicant.getEmail());
+            throw new BusinessException(ErrorCode.ACCOUNT_LOCKED);
+        }
+
+        String newAccessToken = jwtTokenProvider.generateAccessToken(applicant.getUuid(), applicant.getEmail());
+        log.info("Access Token 갱신 성공: email={}, uuid={}", applicant.getEmail(), applicant.getUuid());
+
+        return new ApplicantDto.RefreshTokenResponse(newAccessToken);
+    }
+
     private Long findApplicantIdByUuid(UUID uuid) {
         return applicantRepository.findByUuid(uuid)
                 .map(Applicant::getId)

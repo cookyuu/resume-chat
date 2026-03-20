@@ -83,4 +83,13 @@ public class ApplicantDto {
             );
         }
     }
+
+    /**
+     * Refresh Token 응답 DTO
+     */
+    @Getter
+    @AllArgsConstructor
+    public static class RefreshTokenResponse {
+        private String accessToken;
+    }
 }

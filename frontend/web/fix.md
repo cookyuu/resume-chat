@@ -1256,3 +1256,34 @@ REACT_APP_API_BASE_URL=http://localhost:7777
 **작성일**: 2026-03-11
 **작성자**: Claude (Backend Architect)
 **관련 문서**: [fix.md](./fix.md) (백엔드 개선 플랜)
+
+---
+
+## 🟡 이력서 목록 - 조회수를 채팅 세션 개수로 변경
+
+### 문제 상황
+- 현재 이력서 목록(`ResumesPage.tsx`)에서 "조회수" 컬럼을 표시 중
+- 조회수보다는 **각 이력서당 생성된 채팅 세션 개수**를 보여주는 것이 더 유용함
+- UX 개선을 위해 변경 필요
+
+### 수정 위치
+**파일**: `src/pages/resume/ResumesPage.tsx:126`
+
+### 체크리스트
+
+**프론트엔드 수정**:
+- [x] `ResumesPage.tsx` 테이블 헤더 변경 ✅
+  - [x] "조회수" → "채팅 세션" (Line 149) ✅
+- [x] 테이블 데이터 셀 변경 ✅
+  - [x] `resume.viewCnt` → `resume.sessionCount` (Line 166) ✅
+  - [x] 백엔드에서 `sessionCount` 필드 제공 완료 ✅
+- [x] TypeScript 타입 정의 업데이트 ✅
+  - [x] `src/entities/resume/types.ts`의 `Resume` 인터페이스 (Line 8) ✅
+  - [x] `viewCnt: number;` → `sessionCount: number;` ✅
+- [x] 빌드 테스트 완료 ✅
+  - [x] TypeScript 컴파일 에러 없음 ✅
+  - [x] Vite 빌드 성공 ✅
+
+**백엔드 요청사항** (backend_fix.md 참조):
+- [x] 이력서 목록 API 응답에 `sessionCount` 필드 추가 ✅
+- [x] SQL 쿼리에서 각 이력서당 채팅 세션 개수 집계 ✅

@@ -5,7 +5,7 @@ export interface Resume {
   originalFileName: string;
   fileUrl: string;
   chatLink: string;
-  viewCnt: number;
+  sessionCount: number;
   createdAt: string;
 }
 

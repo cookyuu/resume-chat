@@ -146,7 +146,7 @@ export function ResumesPage() {
               <tr className="bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
                 <th className="px-4 py-3 font-medium">제목</th>
                 <th className="px-4 py-3 font-medium">파일명</th>
-                <th className="px-4 py-3 font-medium text-center">조회수</th>
+                <th className="px-4 py-3 font-medium text-center">채팅 세션</th>
                 <th className="px-4 py-3 font-medium">업로드일</th>
                 <th className="px-4 py-3 font-medium text-right">관리</th>
               </tr>
@@ -163,7 +163,7 @@ export function ResumesPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{resume.originalFileName}</td>
-                  <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-300">{resume.viewCnt}</td>
+                  <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-300">{resume.sessionCount}</td>
                   <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{formatDateTime(resume.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">

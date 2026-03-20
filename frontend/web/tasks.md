@@ -312,12 +312,12 @@
   - [ ] 성공/실패 메시지
   - [ ] 채팅으로 이동 버튼
 
-### 5.3 Rate Limiting
+### 5.3 Rate Limiting ✅
 
-- [ ] Rate limit 에러 처리
-  - [ ] 429 에러 감지
-  - [ ] "너무 많은 요청" 메시지
-  - [ ] Retry-After 헤더 파싱
+- [x] Rate limit 에러 처리
+  - [x] 429 에러 감지
+  - [x] "너무 많은 요청" 메시지
+  - [x] Retry-After 헤더 파싱
 
 ### 5.4 reCAPTCHA
 
@@ -328,12 +328,17 @@
   - [ ] RecruiterChatPage
 - [ ] 환경변수 설정 (SITE_KEY)
 
-### 5.5 악성 사용자 차단 (관리자)
+### 5.5 악성 사용자 차단 (관리자) ✅
 
-- [ ] AdminBlockListPage 생성
-  - [ ] 차단 목록 조회
-  - [ ] 차단 추가 폼
-  - [ ] 차단 해제 버튼
+- [x] AdminBlockListPage 생성
+  - [x] 차단 목록 조회
+  - [x] 차단 추가 폼
+  - [x] 차단 해제 버튼
+- [x] admin feature 모듈 생성
+  - [x] types.ts (BlockedUser, AddBlockRequest)
+  - [x] api.ts (adminApi)
+  - [x] hooks.ts (useBlockList, useAddBlock, useRemoveBlock)
+- [x] 라우팅 설정 (/admin/blocks)
 
 ---
 

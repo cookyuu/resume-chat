@@ -6,6 +6,7 @@ interface Message {
   senderType: string;
   sentAt: string;
   attachment?: {
+    attachmentId: string;
     fileName: string;
     fileSize: number;
     fileType: string;

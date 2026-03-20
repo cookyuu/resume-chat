@@ -21,6 +21,7 @@ apiClient.interceptors.request.use((config) => {
 
 // ── Response Interceptor (Refresh Token 재발급 포함) ──
 let isRefreshing = false;
+let hasShownExpiredAlert = false; // 중복 팝업 방지
 let failedQueue: {
   resolve: (token: string) => void;
   reject: (error: unknown) => void;
@@ -85,8 +86,18 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         useAuthStore.getState().logout();
-        window.location.href = '/login';
-        toast.error('인증이 만료되었습니다. 다시 로그인해주세요.');
+
+        // 중복 팝업 방지 (한 번만 표시)
+        if (!hasShownExpiredAlert) {
+          hasShownExpiredAlert = true;
+
+          // 로그인 만료 알림 팝업
+          alert('로그인이 만료되었습니다.\n다시 로그인해주세요.');
+
+          // 로그인 페이지로 리다이렉트
+          window.location.href = '/login';
+        }
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -107,6 +118,16 @@ apiClient.interceptors.response.use(
       case 409:
         toast.error(errorData?.error?.message || '중복된 데이터가 존재합니다.');
         break;
+      case 429: {
+        // Rate Limiting 에러 처리
+        const retryAfter = error.response?.headers['retry-after'];
+        const waitTime = retryAfter ? `${retryAfter}초` : '잠시';
+        toast.error(
+          errorData?.error?.message || `너무 많은 요청을 보냈습니다. ${waitTime} 후 다시 시도해주세요.`,
+          { duration: 5000 }
+        );
+        break;
+      }
       default:
         if (status && status >= 500) {
           toast.error('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');

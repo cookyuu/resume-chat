@@ -9,6 +9,7 @@ import { ResumeChatsPage } from '@/pages/chat/ResumeChatsPage';
 import { ChatPage } from '@/pages/chat/ChatPage';
 import { RecruiterChatPage } from '@/pages/chat/RecruiterChatPage';
 import { NotificationSettingsPage } from '@/pages/settings/NotificationSettingsPage';
+import { AdminBlockListPage } from '@/pages/admin/AdminBlockListPage';
 
 export const router = createBrowserRouter([
   // ── Public ──
@@ -50,6 +51,10 @@ export const router = createBrowserRouter([
           {
             path: '/settings/notifications',
             element: <NotificationSettingsPage />,
+          },
+          {
+            path: '/admin/blocks',
+            element: <AdminBlockListPage />,
           },
         ],
       },

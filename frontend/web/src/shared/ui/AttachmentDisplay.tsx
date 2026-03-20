@@ -15,7 +15,7 @@ interface AttachmentDisplayProps {
  * - 다운로드 버튼
  * - 이미지 파일은 인라인 표시
  */
-export function AttachmentDisplay({ attachmentId, fileName, fileSize, fileType, fileUrl }: AttachmentDisplayProps) {
+export function AttachmentDisplay({ fileName, fileSize, fileType, fileUrl }: AttachmentDisplayProps) {
   // undefined 체크 추가
   const isImage = fileType?.startsWith('image/') ?? false;
   const isPdf = fileType === 'application/pdf';

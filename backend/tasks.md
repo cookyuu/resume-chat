@@ -4,8 +4,8 @@
 > Frontend 작업은 [tasks_frontend.md](./tasks_frontend.md)를 참고하세요.
 
 **작성일**: 2026-03-10
-**최종 업데이트**: 2026-03-16
-**현재 진행**: Phase 2, Phase 4 완료
+**최종 업데이트**: 2026-03-20
+**현재 진행**: Phase 2, Phase 3 (Redis 인프라), Phase 4 완료
 
 ---
 
@@ -20,6 +20,10 @@
   - [x] 2.4 이메일 알림 (5분 지연 알림 시스템)
   - [x] 2.6 알림 설정 페이지
   - [x] 테스트 & 마무리 (WebSocket 통합, 이메일 서비스)
+- [x] **Phase 3: Redis 인프라 구축 ✅ (2026-03-20 완료)**
+  - [x] 3.1 Redis 통합 및 설정
+  - [x] 3.2 Redis Pub/Sub 메시징 시스템
+  - [x] 3.3 Redis 모니터링 도구
 - [x] **Phase 4: 파일 & 검색 ✅ (2026-03-16 완료)**
   - [x] 4.1 채팅 내 파일 첨부 (엔티티, Repository, DTO)
   - [x] 4.2 이력서 PDF 미리보기
@@ -197,6 +201,105 @@
 - [ ] 푸시 알림 테스트 (Chrome, Safari) (2.5 선택사항 - 미구현)
 - [ ] 성능 테스트 (동시 접속 100명) (선택사항)
 - [x] 문서 업데이트 ✅
+
+---
+
+## Phase 3: Redis 인프라 구축 ✅ (완료)
+
+**우선순위**: 높음 | **완료일**: 2026-03-20
+
+### 3.1 Redis 통합 및 설정
+
+#### Backend
+- [x] Spring Data Redis 의존성 추가 (build.gradle) ✅
+- [x] application.yml Redis 설정 ✅
+  - [x] Redis host, port 설정 (localhost:6379)
+  - [x] Lettuce connection pool 설정
+  - [x] Cache 설정 (TTL: 10분)
+- [x] RedisConfig 클래스 생성 ✅
+  - [x] RedisTemplate Bean 설정
+  - [x] Jackson2JsonRedisSerializer 설정
+  - [x] ObjectMapper JavaTimeModule 등록
+  - [x] Key/Value Serializer 설정
+
+### 3.2 Redis Pub/Sub 메시징 시스템
+
+#### Backend
+- [x] RedisChatMessage DTO 생성 ✅
+  - [x] Serializable 구현
+  - [x] ChatMessage Entity 변환 메서드
+  - [x] from() 정적 팩토리 메서드
+- [x] ChatRedisRepository 생성 ✅
+  - [x] saveMessage() - 메시지 저장 (Hash + List)
+  - [x] getMessage() - 메시지 조회
+  - [x] getRecentMessages() - 최근 메시지 조회 (최대 100개)
+  - [x] markAsRead() - 읽음 처리
+  - [x] getUnreadCount() - 읽지 않은 메시지 수 조회
+  - [x] setOnline() / setOffline() - 온라인 상태 관리
+  - [x] setTyping() - 입력 중 상태 관리
+  - [x] TTL 관리 (메시지: 1시간, 온라인: 5분, 입력 중: 10초)
+- [x] ChatRedisPublisher 생성 ✅
+  - [x] publishMessage() - 메시지 발행
+  - [x] publishTypingEvent() - 입력 중 이벤트 발행
+  - [x] publishPresenceEvent() - 온라인 상태 이벤트 발행
+- [x] ChatRedisSubscriber 생성 ✅
+  - [x] MessageListener 인터페이스 구현
+  - [x] onMessage() 메서드 구현
+  - [x] handleChatMessage() - 채팅 메시지 처리
+  - [x] handleTypingEvent() - 입력 중 이벤트 처리
+  - [x] handlePresenceEvent() - 온라인 상태 이벤트 처리
+  - [x] SimpMessagingTemplate WebSocket 브로드캐스트
+- [x] RedisConfig에 Pub/Sub 리스너 설정 ✅
+  - [x] RedisMessageListenerContainer Bean 생성
+  - [x] PatternTopic "chat:*" 구독 설정
+  - [x] ChatRedisSubscriber 리스너 등록
+
+### 3.3 Redis 모니터링 도구
+
+#### Scripts
+- [x] redis-monitor.sh 생성 ✅
+  - [x] Redis 연결 상태 확인
+  - [x] 메모리 사용량 통계
+  - [x] 연결된 클라이언트 수
+  - [x] 채팅 통계 (메시지, 세션, 온라인, 입력 중)
+  - [x] 활성 Pub/Sub 채널
+  - [x] TTL 샘플 확인
+  - [x] 느린 쿼리 로그
+- [x] redis-realtime.sh 생성 ✅
+  - [x] 1초 간격 실시간 모니터링
+  - [x] 메모리 사용량 실시간 표시
+  - [x] 연결된 클라이언트 수
+  - [x] 채팅 통계 (메시지, 세션, 온라인, 입력 중, 읽지 않음)
+  - [x] 초당 명령어 통계
+  - [x] 활성 Pub/Sub 채널 (상위 5개)
+  - [x] 최근 활성 세션 (상위 3개)
+- [x] redis-pubsub-monitor.sh 생성 ✅
+  - [x] PSUBSCRIBE "chat:*" 실시간 구독
+  - [x] 메시지 타입 파싱 (MESSAGE, TYPING, PRESENCE)
+  - [x] 타임스탬프 포맷팅
+  - [x] 채널 및 메시지 내용 표시
+- [x] redis-messages-monitor.sh 생성 ✅
+  - [x] 저장된 메시지 통계 (전체 메시지 수, 세션 수)
+  - [x] 세션별 메시지 목록 (최근 3개 세션)
+  - [x] 메시지 상세 정보 표시
+  - [x] display_message() 함수 구현
+
+#### Documentation
+- [x] REDIS_DEBUG.md 생성 ✅
+  - [x] Redis 메시지 모니터링 가이드
+  - [x] 실시간 Pub/Sub vs 저장된 메시지 차이 설명
+  - [x] Redis CLI 직접 사용 방법
+  - [x] 메시지 흐름 확인 방법
+  - [x] 디버깅 시나리오 (메시지 전송 실패, 실시간 표시 안됨, 저장 안됨)
+  - [x] 문제 해결 체크리스트
+  - [x] 유용한 Redis 명령어 모음
+  - [x] 테스트 시나리오 (전체 플로우 테스트)
+
+### 테스트 & 마무리
+- [x] Redis 연결 테스트 ✅
+- [x] Pub/Sub 메시지 송수신 테스트 ✅
+- [x] 모니터링 스크립트 동작 확인 ✅
+- [x] 빌드 성공 확인 ✅
 
 ---
 
@@ -517,6 +620,6 @@
 
 ---
 
-**문서 버전**: 1.0
-**최종 업데이트**: 2026-03-10
-**관련 문서**: [tasks_frontend.md](./tasks_frontend.md), [plan.md](./plan.md), [spec.md](./spec.md)
+**문서 버전**: 1.1
+**최종 업데이트**: 2026-03-20
+**관련 문서**: [tasks_frontend.md](./tasks_frontend.md), [plan.md](./plan.md), [spec.md](./spec.md), [REDIS_DEBUG.md](./REDIS_DEBUG.md)
